@@ -107,7 +107,7 @@ export class Scene {
     this.started = true;
     this.emitingParticles = true;
     // this.physicsFrame(16);
-    this.createLinks();
+    // this.createLinks();
     this.particlesEmitter(50);
     this.animationFrame(0);
   }
@@ -167,12 +167,11 @@ export class Scene {
       Math.abs(Math.floor(50 * modulationX)) + 50,
       50
     );
-    // const color = `hsl(${hue},${saturation}%,${50}%)`;
     const l = Math.floor(Math.random() * 50) + 40;
     const color = `hsl(${hue},${saturation}%,${l}%)`;
 
     this.objects.push(
-      new Particle(emitterPosition, particlePosition, [0, 0], 8, color)
+      new Particle(emitterPosition, particlePosition, [0, 0], size, color)
     );
   }
 
@@ -273,7 +272,11 @@ export class Scene {
 
       for (let i = 0; i < this.objects.length; i++) {
         const obj = this.objects[i];
+        // ctx.lineWidth = 2;
         ctx.fillStyle = obj.color;
+        // ctx.strokeStyle = obj.color
+        //   .replace("rgb", "rgba")
+        //   .replace(")", ",0.7)");
         ctx.beginPath();
         ctx.arc(
           Math.round(obj.positionCurrent[0]),
