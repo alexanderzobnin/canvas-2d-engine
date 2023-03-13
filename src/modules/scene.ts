@@ -24,7 +24,7 @@ export function initAnimation(canvas: HTMLCanvasElement) {
   scene.startAnimation();
   setTimeout(() => {
     scene.stopAnimation();
-  }, 160 * 1000);
+  }, 60 * 5 * 1000);
 }
 
 export class Scene {
@@ -100,7 +100,7 @@ export class Scene {
     this.started = true;
     this.emitingParticles = true;
     // this.physicsFrame(16);
-    this.particlesEmitter();
+    this.particlesEmitter(50);
     this.animationFrame(0);
   }
 
@@ -113,7 +113,7 @@ export class Scene {
     cancelAnimationFrame(this.animationFrameHandle);
   }
 
-  particlesEmitter(interval = 100) {
+  particlesEmitter(interval: number) {
     this.emitParticle();
 
     if (
@@ -122,19 +122,19 @@ export class Scene {
       this.objects.length < this.maxParticles
     ) {
       setTimeout(() => {
-        this.particlesEmitter();
+        this.particlesEmitter(interval || 100);
       }, interval);
     } else {
       this.emitingParticles = false;
     }
   }
 
-  emitParticles(interval = 100) {
+  emitParticles(interval?: number) {
     this.emitParticle();
 
     if (this.started && this.emitingParticles) {
       setTimeout(() => {
-        this.emitParticles();
+        this.emitParticles(interval || 100);
       }, interval);
     }
   }
