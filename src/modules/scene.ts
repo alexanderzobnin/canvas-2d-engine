@@ -3,7 +3,7 @@ import { Particle } from "./engine/particle";
 import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 
-const MAX_PARTICLES = 500;
+const MAX_PARTICLES = 100;
 
 export function initCanvas(canvas: HTMLCanvasElement) {
   canvas.width = window.innerWidth - 50;
@@ -24,7 +24,7 @@ export function initAnimation(canvas: HTMLCanvasElement) {
   scene.startAnimation();
   setTimeout(() => {
     scene.stopAnimation();
-  }, 60 * 1000);
+  }, 160 * 1000);
 }
 
 export class Scene {
@@ -32,6 +32,7 @@ export class Scene {
   ctx: CanvasRenderingContext2D | null;
   animationFrameHandle: number;
   lastTime: number;
+  lastTimePhysics: number;
   debug: boolean;
   solver: Solver;
   objects: Particle[];
@@ -47,6 +48,7 @@ export class Scene {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.lastTime = 0;
+    this.lastTimePhysics = 0;
 
     const { debug } = options;
     this.debug = debug;
@@ -56,7 +58,7 @@ export class Scene {
   }
 
   init() {
-    const gravity: Vec2d = [0, 1000];
+    const gravity: Vec2d = [0, 4000];
     const solver = new Solver(gravity);
     this.solver = solver;
 
@@ -97,7 +99,7 @@ export class Scene {
   startAnimation() {
     this.started = true;
     this.emitingParticles = true;
-    // this.physicsFrame(1);
+    // this.physicsFrame(16);
     this.particlesEmitter();
     this.animationFrame(0);
   }
@@ -111,7 +113,7 @@ export class Scene {
     cancelAnimationFrame(this.animationFrameHandle);
   }
 
-  particlesEmitter(interval = 50) {
+  particlesEmitter(interval = 100) {
     this.emitParticle();
 
     if (
@@ -122,6 +124,8 @@ export class Scene {
       setTimeout(() => {
         this.particlesEmitter();
       }, interval);
+    } else {
+      this.emitingParticles = false;
     }
   }
 
@@ -136,25 +140,38 @@ export class Scene {
   }
 
   emitParticle() {
-    for (let i = 0; i < 4; i++) {
-      const jitterX = Math.floor(Math.random() * 100);
-      const jitterY = Math.floor(Math.random() * 100);
-      const position: Vec2d = [800 + jitterX, 200 + jitterY];
-      this.objects.push(new Particle(position, position, [0, 0]));
-    }
+    const emitterPosition: Vec2d = [600, 200];
+    const ts = performance.now();
+    const modulation = Math.sin(ts / 1000);
+    const factor = 5;
+    const particlePosition: Vec2d = [
+      emitterPosition[0] + modulation * factor,
+      emitterPosition[1] + factor,
+    ];
+    const size = Math.max(Math.abs(Math.floor(10 * Math.cos(ts / 100))), 4);
+    const hue = Math.abs(Math.floor(360 * Math.sin(ts / 100)));
+    const saturation = Math.max(Math.abs(Math.floor(50 * modulation)) + 50, 50);
+    const color = `hsl(${hue},${saturation}%,${50}%)`;
+
+    this.objects.push(
+      new Particle(particlePosition, emitterPosition, [0, 0], size, color)
+    );
   }
 
-  physicsFrame(dt: number) {
-    if (this.debug) {
-      console.log("physicsFrame");
+  physicsFrame(interval: number) {
+    const ts = performance.now();
+    let dt = ts - this.lastTimePhysics;
+    this.lastTimePhysics = ts;
+    if (dt > 1000) {
+      dt = interval;
     }
 
-    this.solver.update(dt, this.objects);
+    this.solver.update(dt / 1000, this.objects);
 
     if (this.started) {
       setTimeout(() => {
-        this.physicsFrame(dt);
-      }, 16);
+        this.physicsFrame(interval);
+      }, interval);
     }
   }
 
@@ -167,9 +184,8 @@ export class Scene {
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
       let deltaTime = ts - this.lastTime;
-      if (deltaTime > 1000) {
-        deltaTime = 16;
-      }
+      // Limit deltaTime to 30 ms to prevent strange behavior
+      deltaTime = Math.min(deltaTime, 30);
       this.lastTime = ts;
       if (this.debug) {
         // console.log(deltaTime);

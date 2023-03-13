@@ -10,7 +10,7 @@ export class Solver {
   }
 
   update(dt: number, objects: Particle[]) {
-    const subSteps = 4;
+    const subSteps = 8;
     for (let i = 0; i < subSteps; i++) {
       const subDt = dt / subSteps;
       this.applyGravity(objects);
