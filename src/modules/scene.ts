@@ -4,6 +4,7 @@ import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 
 const MAX_PARTICLES = 100;
+const GRAVITY = 2000;
 
 export function initCanvas(canvas: HTMLCanvasElement) {
   canvas.width = window.innerWidth - 50;
@@ -58,7 +59,7 @@ export class Scene {
   }
 
   init() {
-    const gravity: Vec2d = [0, 4000];
+    const gravity: Vec2d = [0, GRAVITY];
     const solver = new Solver(gravity);
     this.solver = solver;
 
