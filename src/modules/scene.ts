@@ -77,7 +77,7 @@ export class Scene {
     );
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "e") {
+      if (e.key === "e" || e.code === "Space") {
         this.emitingParticles = true;
         emitingParticlesDebounced();
       }
@@ -87,7 +87,7 @@ export class Scene {
       if (e.key === "p") {
         this.toggleAnimation();
       }
-      if (e.key === "e") {
+      if (e.key === "e" || e.code === "Space") {
         this.emitingParticles = false;
       }
       if (e.key === "t") {
@@ -150,19 +150,23 @@ export class Scene {
   emitParticle() {
     const emitterPosition: Vec2d = [600, 200];
     const ts = performance.now();
-    const modulation = Math.sin(ts / 1000);
+    const modulationX = Math.sin(ts / 1000);
+    const modulationY = Math.cos(ts / 1000);
     const factor = 5;
     const particlePosition: Vec2d = [
-      emitterPosition[0] + modulation * factor,
-      emitterPosition[1] + factor,
+      emitterPosition[0] + modulationX * factor,
+      emitterPosition[1] + (modulationY - 1.5) * factor,
     ];
     const size = Math.max(Math.abs(Math.floor(10 * Math.cos(ts / 100))), 4);
     const hue = Math.abs(Math.floor(360 * Math.sin(ts / 100)));
-    const saturation = Math.max(Math.abs(Math.floor(50 * modulation)) + 50, 50);
+    const saturation = Math.max(
+      Math.abs(Math.floor(50 * modulationX)) + 50,
+      50
+    );
     const color = `hsl(${hue},${saturation}%,${50}%)`;
 
     this.objects.push(
-      new Particle(particlePosition, emitterPosition, [0, 0], size, color)
+      new Particle(emitterPosition, particlePosition, [0, 0], size, color)
     );
   }
 
