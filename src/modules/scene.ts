@@ -191,7 +191,7 @@ export class Scene {
         // console.log(deltaTime);
         ctx.fillStyle = "rgb(200, 220, 20)";
         // ctx.strokeStyle = "rgb(200, 220, 20)";
-        ctx.font = "14px monotype";
+        ctx.font = "14px monospace";
         ctx.fillText(
           `${Math.floor(deltaTime * 10) / 10} ms`,
           this.canvas.width - 100,
