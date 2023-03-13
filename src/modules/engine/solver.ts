@@ -1,3 +1,4 @@
+import { Link } from "./link";
 import { Particle } from "./particle";
 import { Vec2d } from "./types";
 import { vecAdd, vecDiv, vecLength, vecMult, vecSub } from "./vector";
@@ -9,14 +10,15 @@ export class Solver {
     this.gravity = gravity;
   }
 
-  update(dt: number, objects: Particle[]) {
+  update(dt: number, objects: Particle[], links?: Link[]) {
     const subSteps = 8;
     for (let i = 0; i < subSteps; i++) {
       const subDt = dt / subSteps;
       this.applyGravity(objects);
       this.applyConstraint(objects);
       // this.applyConstraintFlat(objects);
-      this.solveCollision(objects);
+      this.solveLinks(links);
+      this.solveCollisions(objects);
       this.updatePosition(subDt, objects);
     }
   }
@@ -61,31 +63,46 @@ export class Solver {
     }
   }
 
-  solveCollision(objects: Particle[]) {
+  solveCollision(objA: Particle, objB: Particle) {
+    const collisionAxis = vecSub(objA.positionCurrent, objB.positionCurrent);
+    const distance = vecLength(collisionAxis);
+    if (distance < objA.radius + objB.radius) {
+      const delta = objA.radius + objB.radius - distance;
+      const n = vecDiv(collisionAxis, distance);
+      if (!objA.isStatic) {
+        objA.positionCurrent = vecAdd(
+          objA.positionCurrent,
+          vecMult(n, delta * 0.5)
+        );
+      }
+      if (!objB.isStatic) {
+        objB.positionCurrent = vecSub(
+          objB.positionCurrent,
+          vecMult(n, delta * 0.5)
+        );
+      }
+    }
+  }
+
+  solveCollisions(objects: Particle[]) {
     for (let i = 0; i < objects.length; i++) {
       const objA = objects[i];
       for (let j = i + 1; j < objects.length; j++) {
         const objB = objects[j];
         if (i != j) {
-          const collisionAxis = vecSub(
-            objA.positionCurrent,
-            objB.positionCurrent
-          );
-          const distance = vecLength(collisionAxis);
-          if (distance < objA.radius + objB.radius) {
-            const delta = objA.radius + objB.radius - distance;
-            const n = vecDiv(collisionAxis, distance);
-            objA.positionCurrent = vecAdd(
-              objA.positionCurrent,
-              vecMult(n, delta * 0.5)
-            );
-            objB.positionCurrent = vecSub(
-              objB.positionCurrent,
-              vecMult(n, delta * 0.5)
-            );
-          }
+          this.solveCollision(objA, objB);
         }
       }
+    }
+  }
+
+  solveLinks(links: Link[]) {
+    if (!links) {
+      return;
+    }
+    for (let i = 0; i < links.length; i++) {
+      const l = links[i];
+      l.apply();
     }
   }
 }

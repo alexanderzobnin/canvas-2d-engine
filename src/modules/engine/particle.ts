@@ -9,22 +9,28 @@ export class Particle {
   // radius
   radius: number;
   color: string;
+  isStatic?: boolean;
 
   constructor(
     positionCurrent: Vec2d,
     positionPrev: Vec2d,
     acceleration: Vec2d,
     radius?: number,
-    color?: string
+    color?: string,
+    isStatic?: boolean
   ) {
     this.positionCurrent = positionCurrent;
     this.positionPrev = positionPrev;
     this.acceleration = acceleration;
     this.color = color || getRandomColor();
     this.radius = radius || Math.max(Math.round(Math.random() * 20), 5);
+    this.isStatic = isStatic;
   }
 
   updatePosition(dt: number) {
+    if (this.isStatic) {
+      return;
+    }
     const velocity = vecSub(this.positionCurrent, this.positionPrev);
     this.positionPrev = this.positionCurrent;
     this.positionCurrent = vecAdd(

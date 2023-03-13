@@ -1,10 +1,11 @@
 import { throttle } from "lodash";
+import { Link } from "./engine/link";
 import { Particle } from "./engine/particle";
 import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 
 const MAX_PARTICLES = 100;
-const GRAVITY = 2000;
+const GRAVITY = 1000;
 
 export function initCanvas(canvas: HTMLCanvasElement) {
   canvas.width = window.innerWidth - 50;
@@ -37,6 +38,7 @@ export class Scene {
   debug: boolean;
   solver: Solver;
   objects: Particle[];
+  links: Link[];
   started: boolean;
   maxParticles: number;
   emitingParticles: boolean;
@@ -55,6 +57,7 @@ export class Scene {
     this.debug = debug;
     this.maxParticles = this.maxParticles || MAX_PARTICLES;
     this.objects = [];
+    this.links = [];
     this.dropFramesCount = 0;
   }
 
@@ -104,6 +107,7 @@ export class Scene {
     this.started = true;
     this.emitingParticles = true;
     // this.physicsFrame(16);
+    this.createLinks();
     this.particlesEmitter(50);
     this.animationFrame(0);
   }
@@ -163,11 +167,35 @@ export class Scene {
       Math.abs(Math.floor(50 * modulationX)) + 50,
       50
     );
-    const color = `hsl(${hue},${saturation}%,${50}%)`;
+    // const color = `hsl(${hue},${saturation}%,${50}%)`;
+    const l = Math.floor(Math.random() * 50) + 40;
+    const color = `hsl(${hue},${saturation}%,${l}%)`;
 
     this.objects.push(
-      new Particle(emitterPosition, particlePosition, [0, 0], size, color)
+      new Particle(emitterPosition, particlePosition, [0, 0], 8, color)
     );
+  }
+
+  createLinks() {
+    const startPos: Vec2d = [400, 500];
+    const startParticlePos = this.objects.length;
+    const linksNum = 20;
+    for (let i = 0; i < linksNum + 1; i++) {
+      const pos: Vec2d = [startPos[0] + i * 10, startPos[1] + i * 1];
+      const isStatic = i === 0 || i === linksNum;
+      const particle = new Particle(
+        pos,
+        pos,
+        [0, 0],
+        8,
+        "rgba(255,255,255)",
+        isStatic
+      );
+      this.objects.push(particle);
+    }
+    for (let i = startParticlePos + 1; i < linksNum + 1; i++) {
+      this.links.push(new Link(this.objects[i - 1], this.objects[i], 16));
+    }
   }
 
   physicsFrame(interval: number) {
@@ -241,7 +269,7 @@ export class Scene {
       ctx.fill();
       ctx.stroke();
 
-      this.solver.update(deltaTime / 1000, this.objects);
+      this.solver.update(deltaTime / 1000, this.objects, this.links);
 
       for (let i = 0; i < this.objects.length; i++) {
         const obj = this.objects[i];
