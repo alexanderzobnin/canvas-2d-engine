@@ -76,22 +76,25 @@ export class Scene {
     );
 
     document.addEventListener("keydown", (e) => {
+      if (e.key === "e") {
+        this.emitingParticles = true;
+        emitingParticlesDebounced();
+      }
+    });
+
+    document.addEventListener("keyup", (e) => {
       if (e.key === "p") {
         this.toggleAnimation();
       }
       if (e.key === "e") {
-        this.emitingParticles = true;
-        emitingParticlesDebounced();
+        this.emitingParticles = false;
       }
       if (e.key === "t") {
         this.emitingParticles = !this.emitingParticles;
         this.emitParticles(50);
       }
-    });
-
-    document.addEventListener("keyup", (e) => {
-      if (e.key === "e") {
-        this.emitingParticles = false;
+      if (e.key === "r") {
+        this.removeParticles();
       }
     });
   }
@@ -111,6 +114,10 @@ export class Scene {
   stopAnimation() {
     this.started = false;
     cancelAnimationFrame(this.animationFrameHandle);
+  }
+
+  removeParticles() {
+    this.objects = [];
   }
 
   particlesEmitter(interval: number) {
@@ -184,9 +191,7 @@ export class Scene {
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
       let deltaTime = ts - this.lastTime;
-      // Limit deltaTime to 30 ms to prevent strange behavior
-      deltaTime = Math.min(deltaTime, 30);
-      this.lastTime = ts;
+
       if (this.debug) {
         // console.log(deltaTime);
         ctx.fillStyle = "rgb(200, 220, 20)";
@@ -208,6 +213,10 @@ export class Scene {
           60
         );
       }
+
+      // Limit deltaTime to 30 ms to prevent strange behavior
+      deltaTime = Math.min(deltaTime, 30);
+      this.lastTime = ts;
 
       // Stop animation when FPS starts drop
       if (1000 / deltaTime < 30) {
