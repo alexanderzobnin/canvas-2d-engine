@@ -4,7 +4,7 @@ import { Particle } from "./engine/particle";
 import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 
-const MAX_PARTICLES = 100;
+const MAX_PARTICLES = 3;
 const GRAVITY = 1000;
 
 export function initCanvas(canvas: HTMLCanvasElement) {
@@ -23,7 +23,7 @@ export function initAnimation(canvas: HTMLCanvasElement) {
   const scene = new Scene(canvas, { debug: true });
   scene.init();
 
-  scene.startAnimation();
+  // scene.startAnimation();
   setTimeout(() => {
     scene.stopAnimation();
   }, 60 * 5 * 1000);
@@ -87,6 +87,11 @@ export class Scene {
     });
 
     document.addEventListener("keyup", (e) => {
+      if (e.key === "s") {
+        if (!this.started) {
+          this.startAnimation();
+        }
+      }
       if (e.key === "p") {
         this.toggleAnimation();
       }
@@ -162,6 +167,7 @@ export class Scene {
       emitterPosition[1] + (modulationY - 1.5) * factor,
     ];
     const size = Math.max(Math.abs(Math.floor(10 * Math.cos(ts / 100))), 4);
+    const mass = size;
     const hue = Math.abs(Math.floor(360 * Math.sin(ts / 100)));
     const saturation = Math.max(
       Math.abs(Math.floor(50 * modulationX)) + 50,
@@ -171,7 +177,14 @@ export class Scene {
     const color = `hsl(${hue},${saturation}%,${l}%)`;
 
     this.objects.push(
-      new Particle(emitterPosition, particlePosition, [0, 0], size, color)
+      new Particle({
+        positionCurrent: emitterPosition,
+        positionPrev: particlePosition,
+        acceleration: [0, 0],
+        radius: size,
+        mass,
+        color,
+      })
     );
   }
 
@@ -182,14 +195,15 @@ export class Scene {
     for (let i = 0; i < linksNum + 1; i++) {
       const pos: Vec2d = [startPos[0] + i * 10, startPos[1] + i * 1];
       const isStatic = i === 0 || i === linksNum;
-      const particle = new Particle(
-        pos,
-        pos,
-        [0, 0],
-        8,
-        "rgba(255,255,255)",
-        isStatic
-      );
+      const particle = new Particle({
+        positionCurrent: pos,
+        positionPrev: pos,
+        acceleration: [0, 0],
+        mass: 1,
+        radius: 8,
+        color: "rgba(255,255,255)",
+        isStatic,
+      });
       this.objects.push(particle);
     }
     for (let i = startParticlePos + 1; i < linksNum + 1; i++) {
@@ -205,7 +219,7 @@ export class Scene {
       dt = interval;
     }
 
-    this.solver.update(dt / 1000, this.objects);
+    this.solver.update(this.objects);
 
     if (this.started) {
       setTimeout(() => {
@@ -268,7 +282,7 @@ export class Scene {
       ctx.fill();
       ctx.stroke();
 
-      this.solver.update(deltaTime / 1000, this.objects, this.links);
+      this.solver.update(this.objects, this.links);
 
       for (let i = 0; i < this.objects.length; i++) {
         const obj = this.objects[i];

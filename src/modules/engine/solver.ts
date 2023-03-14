@@ -1,7 +1,17 @@
 import { Link } from "./link";
 import { Particle } from "./particle";
 import { Vec2d } from "./types";
-import { vecAdd, vecDiv, vecLength, vecMult, vecSub } from "./vector";
+import {
+  vecAdd,
+  vecDiv,
+  vecLength,
+  vecMult,
+  vecMultScalar,
+  vecSub,
+} from "./vector";
+
+// 60 updates per second
+const SIMULATION_UPDATE_RATE = 60;
 
 export class Solver {
   gravity: Vec2d;
@@ -9,27 +19,31 @@ export class Solver {
   gridMaxX: number;
   gridMaxY: number;
   gridSize: number;
+  updateRate: number;
+  dt: number;
 
   constructor(gravity: Vec2d) {
     this.gravity = gravity;
     this.gridSize = 40;
     this.gridMaxX = 0;
     this.gridMaxY = 0;
+    this.updateRate = SIMULATION_UPDATE_RATE;
+    this.dt = 1 / this.updateRate;
   }
 
-  update(dt: number, objects: Particle[], links?: Link[]) {
+  update(objects: Particle[], links?: Link[]) {
     const tsGrid = performance.now();
     // console.log(this.grid);
     const subSteps = 8;
     for (let i = 0; i < subSteps; i++) {
-      this.makeGrid(objects);
-      const subDt = dt / subSteps;
+      // this.makeGrid(objects);
+      const subDt = this.dt / subSteps;
       this.applyGravity(objects);
       this.applyConstraint(objects);
       // this.applyConstraintFlat(objects);
       this.solveLinks(links);
-      // this.solveCollisions(objects);
-      this.solveCollisionsGrid(objects);
+      this.solveCollisions(objects);
+      // this.solveCollisionsGrid(objects);
       this.updatePosition(subDt, objects);
     }
     // console.log(`${Math.floor((performance.now() - tsGrid) * 100) / 100} ms`);
@@ -99,13 +113,58 @@ export class Solver {
     }
   }
 
+  solveCollisionInelastic(objA: Particle, objB: Particle) {
+    if (objA === objB) {
+      return;
+    }
+    const collisionAxis = vecSub(objA.positionCurrent, objB.positionCurrent);
+    const distance = vecLength(collisionAxis);
+    if (distance < objA.radius + objB.radius) {
+      const Cr = 0.5;
+      const velA = vecSub(objA.positionCurrent, objA.positionPrev);
+      const velB = vecSub(objB.positionCurrent, objB.positionPrev);
+
+      // Normal vector
+      const un = vecDiv(collisionAxis, distance);
+      // Tangencial vector
+      const ut: Vec2d = [-un[1], un[0]];
+
+      const vAn = vecMultScalar(un, velA);
+      const vAt = vecMultScalar(ut, velA);
+      const vBn = vecMultScalar(un, velB);
+      const vBt = vecMultScalar(ut, velB);
+
+      // Simply solve collision by moving objects to prevent intersection
+      this.solveCollision(objA, objB);
+
+      if (!objA.isStatic) {
+        const vAnScalar =
+          (Cr * objB.mass * (vBn - vAn) + objA.mass * vAn + objB.mass * vBn) /
+          (objA.mass + objB.mass);
+        const va = vecAdd(vecMult(un, vAnScalar), vecMult(ut, vAt));
+        objA.positionPrev = vecSub(objA.positionCurrent, va);
+      }
+      if (!objB.isStatic) {
+        const vBnScalar =
+          (Cr * objA.mass * (vAn - vBn) + objA.mass * vAn + objB.mass * vBn) /
+          (objA.mass + objB.mass);
+        const vb = vecAdd(vecMult(un, vBnScalar), vecMult(ut, vBt));
+        objB.positionPrev = vecSub(objB.positionCurrent, vb);
+      }
+    }
+  }
+
   solveCollisions(objects: Particle[]) {
     for (let i = 0; i < objects.length; i++) {
       const objA = objects[i];
       for (let j = i + 1; j < objects.length; j++) {
         const objB = objects[j];
         if (i != j) {
-          this.solveCollision(objA, objB);
+          if (objA.mass && objB.mass) {
+            this.solveCollisionInelastic(objA, objB);
+          } else {
+            this.solveCollision(objA, objB);
+          }
         }
       }
     }

@@ -12,6 +12,10 @@ export function vecMult(a: Vec2d, b: number): Vec2d {
   return [a[0] * b, a[1] * b];
 }
 
+export function vecMultScalar(a: Vec2d, b: Vec2d): number {
+  return a[0] * b[0] + a[1] * b[1];
+}
+
 export function vecDiv(a: Vec2d, b: number): Vec2d {
   return [a[0] / b, a[1] / b];
 }
