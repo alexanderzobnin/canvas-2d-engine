@@ -36,14 +36,14 @@ export class Solver {
     // console.log(this.grid);
     const subSteps = 8;
     for (let i = 0; i < subSteps; i++) {
-      // this.makeGrid(objects);
+      this.makeGrid(objects);
       const subDt = this.dt / subSteps;
       this.applyGravity(objects);
       this.applyConstraint(objects);
       // this.applyConstraintFlat(objects);
       this.solveLinks(links);
-      this.solveCollisions(objects);
-      // this.solveCollisionsGrid(objects);
+      // this.solveCollisions(objects);
+      this.solveCollisionsGrid(objects);
       this.updatePosition(subDt, objects);
     }
     // console.log(`${Math.floor((performance.now() - tsGrid) * 100) / 100} ms`);
@@ -187,6 +187,9 @@ export class Solver {
         }
         for (let ii = startX; ii <= endX; ii += gridSize) {
           for (let jj = startY; jj <= endY; jj += gridSize) {
+            if (ii === i && jj === j) {
+              continue;
+            }
             const obj = this.grid.get(ii)?.get(jj);
             if (obj) {
               // gridObjects.push(...obj);
