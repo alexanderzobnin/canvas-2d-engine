@@ -167,13 +167,14 @@ export class Scene {
       emitterPosition[1] + (modulationY - 1.5) * factor,
     ];
     // const size = Math.max(Math.abs(Math.floor(10 * Math.cos(ts / 100))), 4);
-    const size = Math.floor(Math.random() * 4) + 4;
+    // const size = Math.floor(Math.random() * 4) + 4;
+    const size = 4;
     const mass = size;
     const temp = Math.random() * 1000;
     // 250 is blue
-    const hue = Math.floor(temp / 4);
-    const saturation = 100;
-    const l = Math.floor(temp / 50 + 40);
+    // const hue = Math.floor(temp / 4);
+    // const saturation = 100;
+    // const l = Math.floor(temp / 50 + 40);
     const color = getTemperatureColorScale(temp);
     // const colorFactor = Math.round(Math.random() * 200) + 55;
     // const colorFactorBlue = Math.min(colorFactor / 10, 255);
@@ -331,10 +332,10 @@ export class Scene {
 }
 
 function getTemperatureColorScale(temp: number) {
-  const hue = Math.floor(temp / 10);
+  const hue = Math.floor(temp / 60);
   const saturation = 100;
   // const l = (Math.log(20) / Math.log(1000 - temp + 1)) * 100 + 10;
-  const l = Math.floor(temp / 40 + 20);
+  const l = Math.floor(temp / 40 + 10);
   const color = `hsl(${hue},${saturation}%,${l}%)`;
   return color;
 }

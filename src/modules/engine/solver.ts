@@ -12,7 +12,7 @@ import {
 
 // 60 updates per second
 const SIMULATION_UPDATE_RATE = 60;
-const SUB_STEPS = 8;
+const SUB_STEPS = 2;
 // coefficient of restitution
 const COR = 0.7;
 
@@ -79,25 +79,34 @@ export class Solver {
 
   applyConvection(objects: Particle[]) {
     for (let i = 0; i < objects.length; i++) {
-      const convectionForce = objects[i].temp * 5;
-      const convectionAcc = convectionForce / objects[i].mass;
+      const convectionForce = Math.min(objects[i].temp, 5000) * 1;
+      // const convectionAcc = convectionForce / Math.pow(objects[i].mass / 4, 2);
+      const convectionAcc = convectionForce;
       objects[i].accelerate([0, -convectionAcc]);
     }
   }
 
   applyCoolingAndHeating(objects: Particle[]) {
     for (let i = 0; i < objects.length; i++) {
+      // Cooling
       const obj = objects[i];
-      const dTemp = (1 / (obj.positionCurrent[1] + 1)) * 10 * 2;
-      obj.temp = Math.max(obj.temp - dTemp, 0);
-
-      if (
-        obj.positionCurrent[0] > 1000 / 2 - 30 &&
-        obj.positionCurrent[0] < 1000 / 2 + 30 &&
-        obj.positionCurrent[1] > 850
-      ) {
-        obj.temp += ((obj.positionCurrent[1] - 850) / 5) * 1.5;
+      if (obj.positionCurrent[1] < 850) {
+        const dTemp = (850 - obj.positionCurrent[1]) * 0.1;
+        obj.temp = Math.max(obj.temp - dTemp, 0);
       }
+
+      // Heating
+      if (obj.positionCurrent[1] + obj.radius >= 900) {
+        obj.temp = Math.min(
+          obj.temp +
+            ((obj.positionCurrent[1] - 850) / 5) *
+              Math.random() *
+              Math.random() *
+              20,
+          5000
+        );
+      }
+      // obj.radius = Math.min(Math.round(obj.temp / 1000) + 4, 6);
     }
   }
 
@@ -114,7 +123,7 @@ export class Solver {
         obj.positionCurrent = vecAdd(newPos, center);
         const angle = Math.atan2(toObj[0], toObj[1]);
         if (Math.abs(Math.sin(angle)) < 0.01) {
-          obj.temp += 100;
+          obj.temp = Math.min(obj.temp + 100, 5000);
         }
         if (Math.abs(Math.sin(angle)) > 0.95) {
           obj.temp = Math.max(obj.temp - 10, 0);
@@ -126,8 +135,8 @@ export class Solver {
   applyConstraintBox(objects: Particle[]) {
     const floor = 900;
     const ceil = 0;
-    const left = 0;
-    const right = 1000;
+    const left = 200;
+    const right = 800;
     for (let i = 0; i < objects.length; i++) {
       const obj = objects[i];
       if (obj.positionCurrent[1] + obj.radius > floor) {
@@ -157,10 +166,11 @@ export class Solver {
     if (distance < objA.radius + objB.radius) {
       if (objA.mass && objB.mass) {
         this.solveCollisionInelastic(objA, objB, axis, distance);
-        this.transmitTemperature(objA, objB);
       } else {
         this.solveCollisionSimple(objA, objB, axis, distance);
       }
+    } else if (distance <= objA.radius + objB.radius + 1) {
+      this.transmitTemperature(objA, objB);
     }
   }
 
@@ -314,8 +324,8 @@ export class Solver {
     const energyB = objB.mass * objB.temp;
     const totalEnergy = energyA + energyB;
     const tempEnd = totalEnergy / (objA.mass + objB.mass);
-    const dTempA = ((tempEnd - objA.temp) / 1000) * 2;
-    const dTempB = ((tempEnd - objB.temp) / 1000) * 2;
+    const dTempA = ((tempEnd - objA.temp) / 1000) * 4;
+    const dTempB = ((tempEnd - objB.temp) / 1000) * 4;
     objA.temp += dTempA;
     objB.temp += dTempB;
   }
