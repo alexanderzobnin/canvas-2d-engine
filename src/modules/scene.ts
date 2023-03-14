@@ -4,7 +4,7 @@ import { Particle } from "./engine/particle";
 import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 
-const MAX_PARTICLES = 3;
+const MAX_PARTICLES = 100;
 const GRAVITY = 1000;
 
 export function initCanvas(canvas: HTMLCanvasElement) {
@@ -100,7 +100,7 @@ export class Scene {
       }
       if (e.key === "t") {
         this.emitingParticles = !this.emitingParticles;
-        this.emitParticles(50);
+        this.emitParticles(10);
       }
       if (e.key === "r") {
         this.removeParticles();
