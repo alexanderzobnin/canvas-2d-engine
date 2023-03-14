@@ -63,16 +63,11 @@ export class Scene {
 
   init() {
     const gravity: Vec2d = [0, GRAVITY];
-    const solver = new Solver(gravity);
+    const solver = new Solver({ gravity, cor: 0.3 });
     this.solver = solver;
 
-    const objects: Particle[] = [];
     const centerX = Math.floor(this.canvas.width / 2);
     const centerY = Math.floor(this.canvas.height / 2);
-    // objects.push(new Particle([centerX, centerY], [centerX, centerY], [0, 0]));
-    // objects.push(new Particle([600, 400], [600, 400], [0, 0]));
-    // objects.push(new Particle([800, 400], [800, 400], [0, 0]));
-    this.objects = objects;
 
     const emitingParticlesDebounced = throttle(
       this.emitParticle.bind(this),

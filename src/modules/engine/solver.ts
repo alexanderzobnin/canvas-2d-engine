@@ -16,6 +16,13 @@ const SUB_STEPS = 8;
 // coefficient of restitution
 const COR = 0.7;
 
+interface SolverOptions {
+  gravity: Vec2d;
+  updateRate?: number;
+  subSteps?: number;
+  cor?: number;
+}
+
 export class Solver {
   gravity: Vec2d;
   grid: Map<number, Map<number, number[]>>;
@@ -27,15 +34,15 @@ export class Solver {
   subSteps: number;
   cor: number;
 
-  constructor(gravity: Vec2d) {
+  constructor({ gravity, updateRate, subSteps, cor }: SolverOptions) {
     this.gravity = gravity;
     this.gridSize = 40;
     this.gridMaxX = 0;
     this.gridMaxY = 0;
-    this.updateRate = SIMULATION_UPDATE_RATE;
+    this.updateRate = updateRate || SIMULATION_UPDATE_RATE;
     this.dt = 1 / this.updateRate;
-    this.subSteps = SUB_STEPS;
-    this.cor = COR;
+    this.subSteps = subSteps || SUB_STEPS;
+    this.cor = cor || COR;
   }
 
   update(objects: Particle[], links?: Link[]) {
