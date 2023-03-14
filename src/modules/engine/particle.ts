@@ -8,6 +8,7 @@ interface ParticleOptions {
   mass: number;
   radius: number;
   color?: string;
+  temp?: number;
   isStatic?: boolean;
 }
 
@@ -20,6 +21,7 @@ export class Particle {
   // radius
   radius: number;
   color: string;
+  temp: number;
   isStatic?: boolean;
 
   constructor({
@@ -29,6 +31,7 @@ export class Particle {
     mass,
     radius,
     color,
+    temp,
     isStatic,
   }: ParticleOptions) {
     this.positionCurrent = positionCurrent;
@@ -37,6 +40,7 @@ export class Particle {
     this.mass = mass;
     this.radius = radius;
     this.color = color || getRandomColor();
+    this.temp = temp;
     this.isStatic = isStatic;
   }
 

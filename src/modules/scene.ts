@@ -4,8 +4,9 @@ import { Particle } from "./engine/particle";
 import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 
-const MAX_PARTICLES = 100;
+const MAX_PARTICLES = 500;
 const GRAVITY = 1000;
+const COR = 0.7;
 
 export function initCanvas(canvas: HTMLCanvasElement) {
   canvas.width = window.innerWidth - 50;
@@ -43,6 +44,7 @@ export class Scene {
   maxParticles: number;
   emitingParticles: boolean;
   dropFramesCount: number;
+  box: { x: number; y: number; w: number; h: number };
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -59,11 +61,12 @@ export class Scene {
     this.objects = [];
     this.links = [];
     this.dropFramesCount = 0;
+    this.box = { x: 100, y: 100, w: 1000, h: 900 };
   }
 
   init() {
     const gravity: Vec2d = [0, GRAVITY];
-    const solver = new Solver({ gravity, cor: 0.3 });
+    const solver = new Solver({ gravity, cor: COR });
     this.solver = solver;
 
     const centerX = Math.floor(this.canvas.width / 2);
@@ -73,6 +76,8 @@ export class Scene {
       this.emitParticle.bind(this),
       30
     );
+
+    this.renderScene();
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "e" || e.code === "Space") {
@@ -108,7 +113,7 @@ export class Scene {
     this.emitingParticles = true;
     // this.physicsFrame(16);
     // this.createLinks();
-    this.particlesEmitter(50);
+    this.particlesEmitter(10);
     this.animationFrame(0);
   }
 
@@ -161,15 +166,18 @@ export class Scene {
       emitterPosition[0] + modulationX * factor,
       emitterPosition[1] + (modulationY - 1.5) * factor,
     ];
-    const size = Math.max(Math.abs(Math.floor(10 * Math.cos(ts / 100))), 4);
+    // const size = Math.max(Math.abs(Math.floor(10 * Math.cos(ts / 100))), 4);
+    const size = Math.floor(Math.random() * 4) + 4;
     const mass = size;
-    const hue = Math.abs(Math.floor(360 * Math.sin(ts / 100)));
-    const saturation = Math.max(
-      Math.abs(Math.floor(50 * modulationX)) + 50,
-      50
-    );
-    const l = Math.floor(Math.random() * 50) + 40;
-    const color = `hsl(${hue},${saturation}%,${l}%)`;
+    const temp = Math.random() * 1000;
+    // 250 is blue
+    const hue = Math.floor(temp / 4);
+    const saturation = 100;
+    const l = Math.floor(temp / 50 + 40);
+    const color = getTemperatureColorScale(temp);
+    // const colorFactor = Math.round(Math.random() * 200) + 55;
+    // const colorFactorBlue = Math.min(colorFactor / 10, 255);
+    // const color = `rgb(${colorFactor},${colorFactor},${colorFactorBlue})`;
 
     this.objects.push(
       new Particle({
@@ -178,6 +186,7 @@ export class Scene {
         acceleration: [0, 0],
         radius: size,
         mass,
+        temp,
         color,
       })
     );
@@ -227,9 +236,8 @@ export class Scene {
     if (this.started) {
       const ctx = this.ctx;
       // Clear screen
-      ctx.fillStyle = "rgb(60, 60, 60)";
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      this.renderScene();
 
       let deltaTime = ts - this.lastTime;
 
@@ -270,26 +278,20 @@ export class Scene {
         // this.stopAnimation();
       }
 
-      ctx.fillStyle = "rgb(0, 0, 0)";
-      ctx.strokeStyle = "rgb(0, 0, 0)";
-      ctx.beginPath();
-      ctx.arc(600, 400, 400, 0, Math.PI * 2, true);
-      ctx.fill();
-      ctx.stroke();
-
       this.solver.update(this.objects, this.links);
 
       for (let i = 0; i < this.objects.length; i++) {
         const obj = this.objects[i];
+        // ctx.fillStyle = obj.color;
+        ctx.fillStyle = getTemperatureColorScale(obj.temp);
         // ctx.lineWidth = 2;
-        ctx.fillStyle = obj.color;
         // ctx.strokeStyle = obj.color
         //   .replace("rgb", "rgba")
         //   .replace(")", ",0.7)");
         ctx.beginPath();
         ctx.arc(
-          Math.round(obj.positionCurrent[0]),
-          Math.round(obj.positionCurrent[1]),
+          Math.round(obj.positionCurrent[0]) + this.box.x,
+          Math.round(obj.positionCurrent[1]) + this.box.y,
           obj.radius,
           0,
           Math.PI * 2,
@@ -304,4 +306,35 @@ export class Scene {
       this.animationFrame(ts)
     );
   }
+
+  renderScene() {
+    const ctx = this.ctx;
+
+    ctx.fillStyle = "rgb(60, 60, 60)";
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    ctx.fillStyle = "rgb(0, 0, 0)";
+    ctx.strokeStyle = "rgb(0, 0, 0)";
+    // ctx.beginPath();
+    // ctx.arc(600, 400, 400, 0, Math.PI * 2, true);
+    ctx.fillRect(this.box.x, this.box.y, this.box.w, this.box.h);
+    ctx.fill();
+    ctx.stroke();
+
+    // render temperature legend
+    for (let i = 0; i < 5000; i += 10) {
+      const color = getTemperatureColorScale(i);
+      ctx.fillStyle = color;
+      ctx.fillRect(10 + i / 10, 10, 1, 8);
+    }
+  }
+}
+
+function getTemperatureColorScale(temp: number) {
+  const hue = Math.floor(temp / 10);
+  const saturation = 100;
+  // const l = (Math.log(20) / Math.log(1000 - temp + 1)) * 100 + 10;
+  const l = Math.floor(temp / 40 + 20);
+  const color = `hsl(${hue},${saturation}%,${l}%)`;
+  return color;
 }

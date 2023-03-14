@@ -52,9 +52,11 @@ export class Solver {
     for (let i = 0; i < subSteps; i++) {
       this.makeGrid(objects);
       const subDt = this.dt / subSteps;
+      this.applyCoolingAndHeating(objects);
       this.applyGravity(objects);
-      this.applyConstraint(objects);
-      // this.applyConstraintFlat(objects);
+      this.applyConvection(objects);
+      // this.applyConstraint(objects);
+      this.applyConstraintBox(objects);
       this.solveLinks(links);
       // this.solveCollisions(objects);
       this.solveCollisionsGrid(objects);
@@ -75,6 +77,30 @@ export class Solver {
     }
   }
 
+  applyConvection(objects: Particle[]) {
+    for (let i = 0; i < objects.length; i++) {
+      const convectionForce = objects[i].temp * 5;
+      const convectionAcc = convectionForce / objects[i].mass;
+      objects[i].accelerate([0, -convectionAcc]);
+    }
+  }
+
+  applyCoolingAndHeating(objects: Particle[]) {
+    for (let i = 0; i < objects.length; i++) {
+      const obj = objects[i];
+      const dTemp = (1 / (obj.positionCurrent[1] + 1)) * 10 * 2;
+      obj.temp = Math.max(obj.temp - dTemp, 0);
+
+      if (
+        obj.positionCurrent[0] > 1000 / 2 - 30 &&
+        obj.positionCurrent[0] < 1000 / 2 + 30 &&
+        obj.positionCurrent[1] > 850
+      ) {
+        obj.temp += ((obj.positionCurrent[1] - 850) / 5) * 1.5;
+      }
+    }
+  }
+
   applyConstraint(objects: Particle[]) {
     const center: Vec2d = [600, 400];
     const radius = 400;
@@ -86,19 +112,38 @@ export class Solver {
         const n = vecDiv(toObj, distance);
         const newPos = vecMult(n, radius - obj.radius);
         obj.positionCurrent = vecAdd(newPos, center);
+        const angle = Math.atan2(toObj[0], toObj[1]);
+        if (Math.abs(Math.sin(angle)) < 0.01) {
+          obj.temp += 100;
+        }
+        if (Math.abs(Math.sin(angle)) > 0.95) {
+          obj.temp = Math.max(obj.temp - 10, 0);
+        }
       }
     }
   }
 
-  applyConstraintFlat(objects: Particle[]) {
-    const floor = 800;
+  applyConstraintBox(objects: Particle[]) {
+    const floor = 900;
+    const ceil = 0;
+    const left = 0;
+    const right = 1000;
     for (let i = 0; i < objects.length; i++) {
       const obj = objects[i];
-      const floorPoint: Vec2d = [obj.positionCurrent[0], floor];
-      const toObj = vecSub(obj.positionCurrent, floorPoint);
-      const distance = vecLength(toObj);
-      if (distance < 20) {
+      if (obj.positionCurrent[1] + obj.radius > floor) {
         obj.positionCurrent = [obj.positionCurrent[0], floor - obj.radius];
+        // let vel = vecSub(obj.positionCurrent, obj.positionPrev);
+        // vel = vecMult(vel, 0.9);
+        // obj.positionPrev = vecSub(obj.positionCurrent, vel);
+      }
+      if (obj.positionCurrent[1] - obj.radius < ceil) {
+        obj.positionCurrent = [obj.positionCurrent[0], ceil + obj.radius];
+      }
+      if (obj.positionCurrent[0] - obj.radius < left) {
+        obj.positionCurrent = [left + obj.radius + 0, obj.positionCurrent[1]];
+      }
+      if (obj.positionCurrent[0] + obj.radius > right) {
+        obj.positionCurrent = [right - obj.radius - 0, obj.positionCurrent[1]];
       }
     }
   }
@@ -112,6 +157,7 @@ export class Solver {
     if (distance < objA.radius + objB.radius) {
       if (objA.mass && objB.mass) {
         this.solveCollisionInelastic(objA, objB, axis, distance);
+        this.transmitTemperature(objA, objB);
       } else {
         this.solveCollisionSimple(objA, objB, axis, distance);
       }
@@ -261,5 +307,16 @@ export class Solver {
       grid.get(objX).get(objY).push(i);
     }
     this.grid = grid;
+  }
+
+  transmitTemperature(objA: Particle, objB: Particle) {
+    const energyA = objA.mass * objA.temp;
+    const energyB = objB.mass * objB.temp;
+    const totalEnergy = energyA + energyB;
+    const tempEnd = totalEnergy / (objA.mass + objB.mass);
+    const dTempA = ((tempEnd - objA.temp) / 1000) * 2;
+    const dTempB = ((tempEnd - objB.temp) / 1000) * 2;
+    objA.temp += dTempA;
+    objB.temp += dTempB;
   }
 }
