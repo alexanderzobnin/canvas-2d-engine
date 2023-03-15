@@ -1,6 +1,6 @@
 import { Link } from "./link";
 import { Particle } from "./particle";
-import { Vec2d } from "./types";
+import { BoxConstraint, Vec2d } from "./types";
 import {
   vecAdd,
   vecDiv,
@@ -21,6 +21,7 @@ interface SolverOptions {
   updateRate?: number;
   subSteps?: number;
   cor?: number;
+  box?: BoxConstraint;
 }
 
 export class Solver {
@@ -33,8 +34,9 @@ export class Solver {
   dt: number;
   subSteps: number;
   cor: number;
+  boxConstraint: BoxConstraint;
 
-  constructor({ gravity, updateRate, subSteps, cor }: SolverOptions) {
+  constructor({ gravity, updateRate, subSteps, cor, box }: SolverOptions) {
     this.gravity = gravity;
     this.gridSize = 40;
     this.gridMaxX = 0;
@@ -43,6 +45,7 @@ export class Solver {
     this.dt = 1 / this.updateRate;
     this.subSteps = subSteps || SUB_STEPS;
     this.cor = cor || COR;
+    this.boxConstraint = box || { w: 800, h: 600 };
   }
 
   update(objects: Particle[], links?: Link[]) {
@@ -56,7 +59,7 @@ export class Solver {
       this.applyGravity(objects);
       this.applyConvection(objects);
       // this.applyConstraint(objects);
-      this.applyConstraintBox(objects);
+      this.applyConstraintBox(objects, this.boxConstraint);
       this.solveLinks(links);
       // this.solveCollisions(objects);
       this.solveCollisionsGrid(objects);
@@ -99,14 +102,9 @@ export class Solver {
       // Heating
       const floor = 600;
       if (obj.positionCurrent[1] + obj.radius >= floor) {
-        obj.temp = Math.min(
-          obj.temp +
-            ((obj.positionCurrent[1] - floor / 10) / 5) *
-              Math.random() *
-              Math.random() *
-              20,
-          5000
-        );
+        const floorDeltaTemp = Math.random() * 100 + 50;
+
+        obj.temp = Math.min(obj.temp + floorDeltaTemp, 5000);
       }
       // obj.radius = Math.min(Math.round(obj.temp / 1000) + 4, 6);
     }
@@ -134,11 +132,11 @@ export class Solver {
     }
   }
 
-  applyConstraintBox(objects: Particle[]) {
-    const floor = 600;
+  applyConstraintBox(objects: Particle[], box: BoxConstraint) {
+    const floor = box.h;
     const ceil = 0;
     const left = 0;
-    const right = 800;
+    const right = box.w;
     for (let i = 0; i < objects.length; i++) {
       const obj = objects[i];
       if (obj.positionCurrent[1] + obj.radius > floor) {
@@ -427,12 +425,13 @@ export class Solver {
   }
 
   transmitTemperature(objA: Particle, objB: Particle) {
+    const transmissionSpeed = (1 / 1000) * 10;
     const energyA = objA.mass * objA.temp;
     const energyB = objB.mass * objB.temp;
     const totalEnergy = energyA + energyB;
     const tempEnd = totalEnergy / (objA.mass + objB.mass);
-    const dTempA = ((tempEnd - objA.temp) / 1000) * 4;
-    const dTempB = ((tempEnd - objB.temp) / 1000) * 4;
+    const dTempA = (tempEnd - objA.temp) * transmissionSpeed;
+    const dTempB = (tempEnd - objB.temp) * transmissionSpeed;
     objA.temp += dTempA;
     objB.temp += dTempB;
   }

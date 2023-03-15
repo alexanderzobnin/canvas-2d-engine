@@ -1,4 +1,6 @@
 import { throttle } from "lodash";
+import { getTemperatureColorScale } from "./engine/color";
+import { ParticleEmitter } from "./engine/emitter";
 import { Link } from "./engine/link";
 import { Particle } from "./engine/particle";
 import { Solver } from "./engine/solver";
@@ -45,6 +47,7 @@ export class Scene {
   emitingParticles: boolean;
   dropFramesCount: number;
   box: { x: number; y: number; w: number; h: number };
+  particlesEmitter: ParticleEmitter;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -61,12 +64,13 @@ export class Scene {
     this.objects = [];
     this.links = [];
     this.dropFramesCount = 0;
-    this.box = { x: 100, y: 100, w: 800, h: 600 };
+    this.box = { x: 100, y: 100, w: 400, h: 600 };
+    this.particlesEmitter = new ParticleEmitter([200, 200], {});
   }
 
   init() {
     const gravity: Vec2d = [0, GRAVITY];
-    const solver = new Solver({ gravity, cor: COR });
+    const solver = new Solver({ gravity, cor: COR, box: this.box });
     this.solver = solver;
 
     const centerX = Math.floor(this.canvas.width / 2);
@@ -97,6 +101,11 @@ export class Scene {
           this.startAnimation(1000);
         }
       }
+      if (e.key === "f") {
+        if (!this.started) {
+          this.startAnimation(1500);
+        }
+      }
       if (e.key === "p") {
         this.toggleAnimation();
       }
@@ -118,7 +127,7 @@ export class Scene {
     this.emitingParticles = true;
     // this.physicsFrame(16);
     // this.createLinks();
-    this.particlesEmitter(10, maxParticles);
+    this.generateParticles(10, maxParticles);
     this.animationFrame(0);
   }
 
@@ -135,7 +144,7 @@ export class Scene {
     this.objects = [];
   }
 
-  particlesEmitter(interval: number, maxParticles?: number) {
+  generateParticles(interval: number, maxParticles?: number) {
     maxParticles = maxParticles || this.maxParticles;
     this.emitParticle();
 
@@ -145,7 +154,7 @@ export class Scene {
       this.objects.length < maxParticles
     ) {
       setTimeout(() => {
-        this.particlesEmitter(interval || 100, maxParticles);
+        this.generateParticles(interval || 100, maxParticles);
       }, interval);
     } else {
       this.emitingParticles = false;
@@ -163,40 +172,8 @@ export class Scene {
   }
 
   emitParticle() {
-    const emitterPosition: Vec2d = [400, 200];
-    const ts = performance.now();
-    const modulationX = Math.sin(ts / 1000);
-    const modulationY = Math.cos(ts / 1000);
-    const factor = 5;
-    const particlePosition: Vec2d = [
-      emitterPosition[0] + modulationX * factor,
-      emitterPosition[1] + (modulationY - 1.5) * factor,
-    ];
-    // const size = Math.max(Math.abs(Math.floor(10 * Math.cos(ts / 100))), 4);
-    const size = Math.floor(Math.random() * 2) + 2;
-    // const size = 4;
-    const mass = size;
-    const temp = Math.random() * 1000 + 1000;
-    // 250 is blue
-    // const hue = Math.floor(temp / 4);
-    // const saturation = 100;
-    // const l = Math.floor(temp / 50 + 40);
-    const colorFactor = Math.round(Math.random() * 200) + 55;
-    const colorFactorBlue = Math.round(Math.random() * 200) + 55;
-    // const color = `rgb(${colorFactor},${colorFactor},${colorFactorBlue})`;
-    const color = getTemperatureColorScale(temp);
-
-    this.objects.push(
-      new Particle({
-        positionCurrent: emitterPosition,
-        positionPrev: particlePosition,
-        acceleration: [0, 0],
-        radius: size,
-        mass,
-        temp,
-        color,
-      })
-    );
+    const particle = this.particlesEmitter.emit();
+    this.objects.push(particle);
   }
 
   createLinks() {
@@ -289,7 +266,7 @@ export class Scene {
   renderScene() {
     const ctx = this.ctx;
 
-    ctx.fillStyle = "rgb(60, 60, 60)";
+    ctx.fillStyle = "rgb(20, 20, 20)";
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     ctx.fillStyle = "rgb(0, 0, 0)";
@@ -330,13 +307,4 @@ export class Scene {
       80
     );
   }
-}
-
-function getTemperatureColorScale(temp: number) {
-  const hue = Math.floor(temp / 60);
-  const saturation = 100;
-  // const l = (Math.log(20) / Math.log(1000 - temp + 1)) * 100 + 10;
-  const l = Math.floor(temp / 60 + 10);
-  const color = `hsl(${hue},${saturation}%,${l}%)`;
-  return color;
 }
