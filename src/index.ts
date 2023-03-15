@@ -1,4 +1,5 @@
 import { initAnimation, initCanvas, initContext } from "./modules/scene";
+import { init } from "./modules/sceneWebgl";
 
 function main() {
   const scene: HTMLCanvasElement = document.getElementById(
@@ -6,8 +7,9 @@ function main() {
   ) as HTMLCanvasElement;
 
   initCanvas(scene);
-  // const ctx = initContext(scene);
-  initAnimation(scene);
+
+  // initAnimation(scene);
+  init(scene);
 }
 
 main();

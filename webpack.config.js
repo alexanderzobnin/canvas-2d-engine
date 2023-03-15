@@ -33,6 +33,10 @@ module.exports = {
           from: "src/styles.css",
           to: "./",
         },
+        {
+          from: "src/modules/shaders/",
+          to: "./shaders",
+        },
       ],
     }),
   ],
