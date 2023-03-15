@@ -12,7 +12,7 @@ import {
 
 // 60 updates per second
 const SIMULATION_UPDATE_RATE = 60;
-const SUB_STEPS = 8;
+const SUB_STEPS = 2;
 // coefficient of restitution
 const COR = 0.7;
 
@@ -52,15 +52,15 @@ export class Solver {
     const subDt = this.dt / subSteps;
     for (let i = 0; i < subSteps; i++) {
       this.makeGrid(objects);
-      // this.applyCoolingAndHeating(objects);
+      this.applyCoolingAndHeating(objects);
       this.applyGravity(objects);
-      // this.applyConvection(objects);
-      this.applyConstraint(objects);
-      // this.applyConstraintBox(objects);
+      this.applyConvection(objects);
+      // this.applyConstraint(objects);
+      this.applyConstraintBox(objects);
       this.solveLinks(links);
       // this.solveCollisions(objects);
-      // this.solveCollisionsGrid(objects);
-      this.solveCollisionsSweepNPrune(objects);
+      this.solveCollisionsGrid(objects);
+      // this.solveCollisionsSweepNPrune(objects);
       this.updatePosition(subDt, objects);
     }
     // console.log(`${Math.floor((performance.now() - tsGrid) * 100) / 100} ms`);
@@ -91,16 +91,17 @@ export class Solver {
     for (let i = 0; i < objects.length; i++) {
       // Cooling
       const obj = objects[i];
-      if (obj.positionCurrent[1] < 850) {
+      if (obj.positionCurrent[1] < 550) {
         const dTemp = (850 - obj.positionCurrent[1]) * 0.1;
         obj.temp = Math.max(obj.temp - dTemp, 0);
       }
 
       // Heating
-      if (obj.positionCurrent[1] + obj.radius >= 900) {
+      const floor = 600;
+      if (obj.positionCurrent[1] + obj.radius >= floor) {
         obj.temp = Math.min(
           obj.temp +
-            ((obj.positionCurrent[1] - 850) / 5) *
+            ((obj.positionCurrent[1] - floor / 10) / 5) *
               Math.random() *
               Math.random() *
               20,
@@ -175,7 +176,7 @@ export class Solver {
         this.solveCollisionSimple(objA, objB, axis, distance);
       }
     } else if (distance <= objA.radius + objB.radius + 1) {
-      // this.transmitTemperature(objA, objB);
+      this.transmitTemperature(objA, objB);
     }
   }
 
@@ -245,7 +246,7 @@ export class Solver {
   solveCollisions(objects: Particle[]) {
     for (let i = 0; i < objects.length; i++) {
       const objA = objects[i];
-      for (let j = 0; j < objects.length; j++) {
+      for (let j = i; j < objects.length; j++) {
         const objB = objects[j];
         this.solveCollision(objA, objB);
       }
@@ -266,38 +267,32 @@ export class Solver {
     });
 
     const collisionGroups: Array<Particle[]> = [];
-    let activeInterval: Particle[] = [];
+
+    const firstParticle = objects[objectsIndexes[0]];
+    let activeInterval: Particle[] = [firstParticle];
+    let activeIntervalRight =
+      firstParticle.positionCurrent[0] + firstParticle.radius;
+    let obj: Particle;
 
     for (let i = 1; i < objectsIndexes.length; i++) {
-      activeInterval = [objects[objectsIndexes[i]]];
-      const currentLeftBound =
-        objects[objectsIndexes[i]].positionCurrent[0] -
-        objects[objectsIndexes[i]].radius;
-      const currentRightBound =
-        objects[objectsIndexes[i]].positionCurrent[0] +
-        objects[objectsIndexes[i]].radius;
-      // check on the left
-      for (let iL = i - 1; iL >= 0; iL--) {
-        const obj = objects[objectsIndexes[iL]];
-        if (obj.positionCurrent[0] + obj.radius > currentLeftBound) {
-          activeInterval.push(objects[objectsIndexes[iL]]);
-        } else {
-          break;
+      obj = objects[objectsIndexes[i]];
+      const isInsideInterval =
+        obj.positionCurrent[0] - obj.radius < activeIntervalRight;
+      if (isInsideInterval) {
+        activeInterval.push(obj);
+        activeIntervalRight = obj.positionCurrent[0] + obj.radius;
+      }
+      if (!isInsideInterval || i === objectsIndexes.length - 1) {
+        if (activeInterval.length > 1) {
+          const collisionGroup: Particle[] = [];
+          for (let k = 0; k < activeInterval.length; k++) {
+            collisionGroup.push(activeInterval[k]);
+          }
+          collisionGroups.push(collisionGroup);
         }
+        activeInterval = [obj];
+        activeIntervalRight = obj.positionCurrent[0] + obj.radius;
       }
-      // check on the right
-      for (let iR = i + 1; iR < objectsIndexes.length; iR++) {
-        const obj = objects[objectsIndexes[iR]];
-        if (obj.positionCurrent[0] - obj.radius < currentRightBound) {
-          activeInterval.push(objects[objectsIndexes[iR]]);
-        } else {
-          break;
-        }
-      }
-      if (activeInterval.length > 1) {
-        collisionGroups.push(activeInterval);
-      }
-      activeInterval = [];
     }
 
     for (let i = 0; i < collisionGroups.length; i++) {
@@ -306,37 +301,93 @@ export class Solver {
   }
 
   solveCollisionsGrid(objects: Particle[]) {
-    const gridSize = this.gridSize;
-    for (let i = 0; i < this.gridMaxX; i += gridSize) {
-      for (let j = 0; j < this.gridMaxY; j += gridSize) {
-        const startX = Math.max(0, i - gridSize);
-        const endX = Math.min(this.gridMaxX, i + gridSize);
-        const startY = Math.max(0, j - gridSize);
-        const endY = Math.min(this.gridMaxY, j + gridSize);
-        let gridObjects: Particle[] = [];
-        const centerCell = this.grid.get(i)?.get(j);
-        if (centerCell) {
-          for (let k = 0; k < centerCell.length; k++) {
-            gridObjects.push(objects[centerCell[k]]);
-          }
-        }
-        for (let ii = startX; ii <= endX; ii += gridSize) {
-          for (let jj = startY; jj <= endY; jj += gridSize) {
-            if (ii === i && jj === j) {
-              continue;
-            }
-            const obj = this.grid.get(ii)?.get(jj);
-            if (obj) {
-              // gridObjects.push(...obj);
-              const cellObjects: Particle[] = [];
-              for (let k = 0; k < obj.length; k++) {
-                cellObjects.push(objects[obj[k]]);
-              }
-              this.solveCollisions(gridObjects.concat(cellObjects));
-            }
-          }
+    if (objects.length < 2) {
+      return;
+    }
+    const objectsIndexes = new Array<number>(objects.length);
+    for (let i = 0; i < objects.length; i++) {
+      objectsIndexes[i] = i;
+    }
+    // Sort by X coordinate
+    objectsIndexes.sort((i, j) => {
+      return objects[i].positionCurrent[0] - objects[j].positionCurrent[0];
+    });
+
+    const gridSize = 20;
+    const gridOverlap = 10;
+    let gridPosX = 0;
+    let gridPosY = 0;
+    const collisionGroups: Array<Particle[]> = [];
+    const lastObject = objects[objectsIndexes[objectsIndexes.length - 1]];
+
+    while (gridPosX < lastObject.positionCurrent[0]) {
+      const activeIntervalX: number[] = [];
+      let firstGridPoint = 0;
+      // find first point for current grid cell
+      for (let i = 0; i < objectsIndexes.length; i++) {
+        if (objects[objectsIndexes[i]].positionCurrent[0] > gridPosX) {
+          firstGridPoint = i;
+          break;
         }
       }
+      for (let i = firstGridPoint; i < objectsIndexes.length; i++) {
+        const obj = objects[objectsIndexes[i]];
+        if (
+          obj.positionCurrent[0] > gridPosX &&
+          obj.positionCurrent[0] < gridPosX + gridSize
+        ) {
+          activeIntervalX.push(objectsIndexes[i]);
+        } else {
+          break;
+        }
+      }
+
+      if (activeIntervalX.length > 1) {
+        gridPosY = 0;
+        activeIntervalX.sort((i, j) => {
+          return objects[i].positionCurrent[1] - objects[j].positionCurrent[1];
+        });
+        const lastObjectY =
+          objects[activeIntervalX[activeIntervalX.length - 1]];
+        while (gridPosY < lastObjectY.positionCurrent[1]) {
+          const activeIntervalY: number[] = [];
+          let firstGridPointY = 0;
+          // find first point for current grid cell
+          for (let i = 0; i < activeIntervalX.length; i++) {
+            if (objects[activeIntervalX[i]].positionCurrent[1] > gridPosY) {
+              firstGridPointY = i;
+              break;
+            }
+          }
+          for (let i = firstGridPointY; i < activeIntervalX.length; i++) {
+            const obj = objects[activeIntervalX[i]];
+            if (
+              obj.positionCurrent[1] > gridPosY &&
+              obj.positionCurrent[1] < gridPosY + gridSize
+            ) {
+              activeIntervalY.push(activeIntervalX[i]);
+            } else {
+              break;
+            }
+          }
+
+          if (activeIntervalY.length > 1) {
+            const collisionGroup: Particle[] = [];
+            for (let k = 0; k < activeIntervalY.length; k++) {
+              collisionGroup.push(objects[activeIntervalY[k]]);
+            }
+            collisionGroups.push(collisionGroup);
+          }
+
+          gridPosY += gridSize - gridOverlap;
+        }
+      }
+
+      gridPosX += gridSize - gridOverlap;
+    }
+
+    for (let i = 0; i < collisionGroups.length; i++) {
+      this.solveCollisions(collisionGroups[i]);
     }
   }
 

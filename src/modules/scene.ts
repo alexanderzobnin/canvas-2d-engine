@@ -4,8 +4,8 @@ import { Particle } from "./engine/particle";
 import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 
-const MAX_PARTICLES = 10;
-const GRAVITY = 10;
+const MAX_PARTICLES = 100;
+const GRAVITY = 800;
 const COR = 0.7;
 
 export function initCanvas(canvas: HTMLCanvasElement) {
@@ -92,6 +92,11 @@ export class Scene {
           this.startAnimation();
         }
       }
+      if (e.key === "d") {
+        if (!this.started) {
+          this.startAnimation(1000);
+        }
+      }
       if (e.key === "p") {
         this.toggleAnimation();
       }
@@ -108,12 +113,12 @@ export class Scene {
     });
   }
 
-  startAnimation() {
+  startAnimation(maxParticles?: number) {
     this.started = true;
     this.emitingParticles = true;
     // this.physicsFrame(16);
     // this.createLinks();
-    this.particlesEmitter(10);
+    this.particlesEmitter(10, maxParticles);
     this.animationFrame(0);
   }
 
@@ -130,16 +135,17 @@ export class Scene {
     this.objects = [];
   }
 
-  particlesEmitter(interval: number) {
+  particlesEmitter(interval: number, maxParticles?: number) {
+    maxParticles = maxParticles || this.maxParticles;
     this.emitParticle();
 
     if (
       this.started &&
       this.emitingParticles &&
-      this.objects.length < this.maxParticles
+      this.objects.length < maxParticles
     ) {
       setTimeout(() => {
-        this.particlesEmitter(interval || 100);
+        this.particlesEmitter(interval || 100, maxParticles);
       }, interval);
     } else {
       this.emitingParticles = false;
@@ -167,18 +173,18 @@ export class Scene {
       emitterPosition[1] + (modulationY - 1.5) * factor,
     ];
     // const size = Math.max(Math.abs(Math.floor(10 * Math.cos(ts / 100))), 4);
-    // const size = Math.floor(Math.random() * 4) + 4;
-    const size = 4;
+    const size = Math.floor(Math.random() * 2) + 2;
+    // const size = 4;
     const mass = size;
-    const temp = Math.random() * 1000;
+    const temp = Math.random() * 1000 + 1000;
     // 250 is blue
     // const hue = Math.floor(temp / 4);
     // const saturation = 100;
     // const l = Math.floor(temp / 50 + 40);
-    // const color = getTemperatureColorScale(temp);
     const colorFactor = Math.round(Math.random() * 200) + 55;
     const colorFactorBlue = Math.round(Math.random() * 200) + 55;
-    const color = `rgb(${colorFactor},${colorFactor},${colorFactorBlue})`;
+    // const color = `rgb(${colorFactor},${colorFactor},${colorFactorBlue})`;
+    const color = getTemperatureColorScale(temp);
 
     this.objects.push(
       new Particle({
@@ -246,30 +252,7 @@ export class Scene {
       const tsSolverTime = performance.now() - tsSolverStart;
 
       if (this.debug) {
-        // console.log(deltaTime);
-        ctx.fillStyle = "rgb(200, 220, 20)";
-        // ctx.strokeStyle = "rgb(200, 220, 20)";
-        ctx.font = "14px monospace";
-        ctx.fillText(
-          `${Math.floor(deltaTime * 10) / 10} ms`,
-          this.canvas.width - 100,
-          20
-        );
-        ctx.fillText(
-          `${Math.round(1000 / deltaTime)} fps`,
-          this.canvas.width - 100,
-          40
-        );
-        ctx.fillText(
-          `${Math.floor(tsSolverTime)} ms`,
-          this.canvas.width - 100,
-          60
-        );
-        ctx.fillText(
-          `${this.objects.length} particles`,
-          this.canvas.width - 100,
-          80
-        );
+        this.renderDebugInfo(deltaTime, tsSolverTime);
       }
 
       // Limit deltaTime to 30 ms to prevent strange behavior
@@ -278,8 +261,8 @@ export class Scene {
 
       for (let i = 0; i < this.objects.length; i++) {
         const obj = this.objects[i];
-        ctx.fillStyle = obj.color;
-        // ctx.fillStyle = getTemperatureColorScale(obj.temp);
+        // ctx.fillStyle = obj.color;
+        ctx.fillStyle = getTemperatureColorScale(obj.temp);
         // ctx.lineWidth = 2;
         // ctx.strokeStyle = obj.color
         //   .replace("rgb", "rgba")
@@ -311,9 +294,9 @@ export class Scene {
 
     ctx.fillStyle = "rgb(0, 0, 0)";
     ctx.strokeStyle = "rgb(0, 0, 0)";
-    ctx.beginPath();
-    ctx.arc(500, 400, 300, 0, Math.PI * 2, true);
-    // ctx.fillRect(this.box.x, this.box.y, this.box.w, this.box.h);
+    // ctx.beginPath();
+    // ctx.arc(500, 400, 300, 0, Math.PI * 2, true);
+    ctx.fillRect(this.box.x, this.box.y, this.box.w, this.box.h);
     ctx.fill();
     ctx.stroke();
 
@@ -324,13 +307,36 @@ export class Scene {
       ctx.fillRect(10 + i / 10, 10, 1, 8);
     }
   }
+
+  renderDebugInfo(deltaTime: number, tsSolverTime: number) {
+    const ctx = this.ctx;
+    ctx.fillStyle = "rgb(200, 220, 20)";
+    // ctx.strokeStyle = "rgb(200, 220, 20)";
+    ctx.font = "14px monospace";
+    ctx.fillText(
+      `${Math.floor(deltaTime * 10) / 10} ms`,
+      this.canvas.width - 100,
+      20
+    );
+    ctx.fillText(
+      `${Math.round(1000 / deltaTime)} fps`,
+      this.canvas.width - 100,
+      40
+    );
+    ctx.fillText(`${Math.floor(tsSolverTime)} ms`, this.canvas.width - 100, 60);
+    ctx.fillText(
+      `${this.objects.length} particles`,
+      this.canvas.width - 100,
+      80
+    );
+  }
 }
 
 function getTemperatureColorScale(temp: number) {
   const hue = Math.floor(temp / 60);
   const saturation = 100;
   // const l = (Math.log(20) / Math.log(1000 - temp + 1)) * 100 + 10;
-  const l = Math.floor(temp / 40 + 10);
+  const l = Math.floor(temp / 60 + 10);
   const color = `hsl(${hue},${saturation}%,${l}%)`;
   return color;
 }
