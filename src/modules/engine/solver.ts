@@ -12,7 +12,7 @@ import {
 
 // 60 updates per second
 const SIMULATION_UPDATE_RATE = 60;
-const SUB_STEPS = 2;
+const SUB_STEPS = 8;
 // coefficient of restitution
 const COR = 0.7;
 
@@ -49,17 +49,18 @@ export class Solver {
     const tsGrid = performance.now();
     // console.log(this.grid);
     const subSteps = SUB_STEPS;
+    const subDt = this.dt / subSteps;
     for (let i = 0; i < subSteps; i++) {
       this.makeGrid(objects);
-      const subDt = this.dt / subSteps;
-      this.applyCoolingAndHeating(objects);
+      // this.applyCoolingAndHeating(objects);
       this.applyGravity(objects);
-      this.applyConvection(objects);
-      // this.applyConstraint(objects);
-      this.applyConstraintBox(objects);
+      // this.applyConvection(objects);
+      this.applyConstraint(objects);
+      // this.applyConstraintBox(objects);
       this.solveLinks(links);
       // this.solveCollisions(objects);
-      this.solveCollisionsGrid(objects);
+      // this.solveCollisionsGrid(objects);
+      this.solveCollisionsSweepNPrune(objects);
       this.updatePosition(subDt, objects);
     }
     // console.log(`${Math.floor((performance.now() - tsGrid) * 100) / 100} ms`);
@@ -111,8 +112,8 @@ export class Solver {
   }
 
   applyConstraint(objects: Particle[]) {
-    const center: Vec2d = [600, 400];
-    const radius = 400;
+    const center: Vec2d = [400, 300];
+    const radius = 300;
     for (let i = 0; i < objects.length; i++) {
       const obj = objects[i];
       const toObj = vecSub(obj.positionCurrent, center);
@@ -133,9 +134,9 @@ export class Solver {
   }
 
   applyConstraintBox(objects: Particle[]) {
-    const floor = 900;
+    const floor = 600;
     const ceil = 0;
-    const left = 200;
+    const left = 0;
     const right = 800;
     for (let i = 0; i < objects.length; i++) {
       const obj = objects[i];
@@ -161,8 +162,12 @@ export class Solver {
     if (objA === objB) {
       return;
     }
-    const axis = vecSub(objA.positionCurrent, objB.positionCurrent);
-    const distance = vecLength(axis);
+    let axis = vecSub(objA.positionCurrent, objB.positionCurrent);
+    if (axis[0] === 0 && axis[1] === 0) {
+      axis = [1, 0];
+    }
+    let distance = vecLength(axis);
+
     if (distance < objA.radius + objB.radius) {
       if (objA.mass && objB.mass) {
         this.solveCollisionInelastic(objA, objB, axis, distance);
@@ -170,7 +175,7 @@ export class Solver {
         this.solveCollisionSimple(objA, objB, axis, distance);
       }
     } else if (distance <= objA.radius + objB.radius + 1) {
-      this.transmitTemperature(objA, objB);
+      // this.transmitTemperature(objA, objB);
     }
   }
 
@@ -240,12 +245,63 @@ export class Solver {
   solveCollisions(objects: Particle[]) {
     for (let i = 0; i < objects.length; i++) {
       const objA = objects[i];
-      for (let j = i + 1; j < objects.length; j++) {
+      for (let j = 0; j < objects.length; j++) {
         const objB = objects[j];
-        if (i != j) {
-          this.solveCollision(objA, objB);
+        this.solveCollision(objA, objB);
+      }
+    }
+  }
+
+  solveCollisionsSweepNPrune(objects: Particle[]) {
+    if (objects.length < 2) {
+      return;
+    }
+    const objectsIndexes = new Array<number>(objects.length);
+    for (let i = 0; i < objects.length; i++) {
+      objectsIndexes[i] = i;
+    }
+    // Sort by X coordinate
+    objectsIndexes.sort((i, j) => {
+      return objects[i].positionCurrent[0] - objects[j].positionCurrent[0];
+    });
+
+    const collisionGroups: Array<Particle[]> = [];
+    let activeInterval: Particle[] = [];
+
+    for (let i = 1; i < objectsIndexes.length; i++) {
+      activeInterval = [objects[objectsIndexes[i]]];
+      const currentLeftBound =
+        objects[objectsIndexes[i]].positionCurrent[0] -
+        objects[objectsIndexes[i]].radius;
+      const currentRightBound =
+        objects[objectsIndexes[i]].positionCurrent[0] +
+        objects[objectsIndexes[i]].radius;
+      // check on the left
+      for (let iL = i - 1; iL >= 0; iL--) {
+        const obj = objects[objectsIndexes[iL]];
+        if (obj.positionCurrent[0] + obj.radius > currentLeftBound) {
+          activeInterval.push(objects[objectsIndexes[iL]]);
+        } else {
+          break;
         }
       }
+      // check on the right
+      for (let iR = i + 1; iR < objectsIndexes.length; iR++) {
+        const obj = objects[objectsIndexes[iR]];
+        if (obj.positionCurrent[0] - obj.radius < currentRightBound) {
+          activeInterval.push(objects[objectsIndexes[iR]]);
+        } else {
+          break;
+        }
+      }
+      if (activeInterval.length > 1) {
+        collisionGroups.push(activeInterval);
+      }
+      activeInterval = [];
+    }
+
+    for (let i = 0; i < collisionGroups.length; i++) {
+      this.solveCollisions(collisionGroups[i]);
     }
   }
 

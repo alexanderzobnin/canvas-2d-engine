@@ -4,8 +4,8 @@ import { Particle } from "./engine/particle";
 import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 
-const MAX_PARTICLES = 500;
-const GRAVITY = 1000;
+const MAX_PARTICLES = 10;
+const GRAVITY = 10;
 const COR = 0.7;
 
 export function initCanvas(canvas: HTMLCanvasElement) {
@@ -61,7 +61,7 @@ export class Scene {
     this.objects = [];
     this.links = [];
     this.dropFramesCount = 0;
-    this.box = { x: 100, y: 100, w: 1000, h: 900 };
+    this.box = { x: 100, y: 100, w: 800, h: 600 };
   }
 
   init() {
@@ -157,7 +157,7 @@ export class Scene {
   }
 
   emitParticle() {
-    const emitterPosition: Vec2d = [600, 200];
+    const emitterPosition: Vec2d = [400, 200];
     const ts = performance.now();
     const modulationX = Math.sin(ts / 1000);
     const modulationY = Math.cos(ts / 1000);
@@ -175,10 +175,10 @@ export class Scene {
     // const hue = Math.floor(temp / 4);
     // const saturation = 100;
     // const l = Math.floor(temp / 50 + 40);
-    const color = getTemperatureColorScale(temp);
-    // const colorFactor = Math.round(Math.random() * 200) + 55;
-    // const colorFactorBlue = Math.min(colorFactor / 10, 255);
-    // const color = `rgb(${colorFactor},${colorFactor},${colorFactorBlue})`;
+    // const color = getTemperatureColorScale(temp);
+    const colorFactor = Math.round(Math.random() * 200) + 55;
+    const colorFactorBlue = Math.round(Math.random() * 200) + 55;
+    const color = `rgb(${colorFactor},${colorFactor},${colorFactorBlue})`;
 
     this.objects.push(
       new Particle({
@@ -241,6 +241,9 @@ export class Scene {
       this.renderScene();
 
       let deltaTime = ts - this.lastTime;
+      const tsSolverStart = performance.now();
+      this.solver.update(this.objects, this.links);
+      const tsSolverTime = performance.now() - tsSolverStart;
 
       if (this.debug) {
         // console.log(deltaTime);
@@ -258,9 +261,14 @@ export class Scene {
           40
         );
         ctx.fillText(
-          `${this.objects.length} particles`,
+          `${Math.floor(tsSolverTime)} ms`,
           this.canvas.width - 100,
           60
+        );
+        ctx.fillText(
+          `${this.objects.length} particles`,
+          this.canvas.width - 100,
+          80
         );
       }
 
@@ -268,23 +276,10 @@ export class Scene {
       deltaTime = Math.min(deltaTime, 30);
       this.lastTime = ts;
 
-      // Stop animation when FPS starts drop
-      if (1000 / deltaTime < 30) {
-        this.dropFramesCount++;
-      }
-      if (this.dropFramesCount > 10) {
-        this.emitingParticles = false;
-      }
-      if (this.dropFramesCount > 20) {
-        // this.stopAnimation();
-      }
-
-      this.solver.update(this.objects, this.links);
-
       for (let i = 0; i < this.objects.length; i++) {
         const obj = this.objects[i];
-        // ctx.fillStyle = obj.color;
-        ctx.fillStyle = getTemperatureColorScale(obj.temp);
+        ctx.fillStyle = obj.color;
+        // ctx.fillStyle = getTemperatureColorScale(obj.temp);
         // ctx.lineWidth = 2;
         // ctx.strokeStyle = obj.color
         //   .replace("rgb", "rgba")
@@ -316,9 +311,9 @@ export class Scene {
 
     ctx.fillStyle = "rgb(0, 0, 0)";
     ctx.strokeStyle = "rgb(0, 0, 0)";
-    // ctx.beginPath();
-    // ctx.arc(600, 400, 400, 0, Math.PI * 2, true);
-    ctx.fillRect(this.box.x, this.box.y, this.box.w, this.box.h);
+    ctx.beginPath();
+    ctx.arc(500, 400, 300, 0, Math.PI * 2, true);
+    // ctx.fillRect(this.box.x, this.box.y, this.box.w, this.box.h);
     ctx.fill();
     ctx.stroke();
 
