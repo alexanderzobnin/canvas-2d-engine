@@ -1,19 +1,13 @@
-precision highp float ; // high percision for float variables
-precision highp int ;   // high percision for integer variables
+#ifdef GL_ES
+precision mediump float;
+#endif
 
-in vec2 position;   // position of vertices as input of the shader
+attribute vec2 position;
+varying vec2 v_position;
 
-out vec2 pixPos ;   // pixel positions (out to fragment shader)
-out vec2 cc    ;    // pixel positions (out to fragment shader)
-
-// Main body of the vertex shader
-void main() {
-    pixPos = position.xy ;  // interpolate based on xy values
-    cc = position.xy ;  // interpolate based on xy values
-    gl_Position = vec4(
-      position.x*2.-1.,   /* x-coordinate */
-      position.y*2.-1.,   /* y-coordinate */
-      position.z,         /* z-coordinate */
-      1.0
-    );
+void main(void) {
+    vec4 pos = vec4(position, 0.0, 1.0);
+    gl_Position = pos;
+    gl_PointSize = 8.0;
+    v_position = pos.xy;
 }
