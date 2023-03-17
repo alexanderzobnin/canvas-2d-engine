@@ -31,7 +31,7 @@ void main() {
     vec4 color = u_color;
     vec3 colorRGB = u_color.rgb;
     // // Modulate with time
-    colorRGB = colorRGB * vec3(1.0, abs(cos(u_time / 2.0 * v_position.x / u_resolution.x * 8.0)) * 0.6 + 0.4, abs(sin(u_time / 4.0)) * 0.6 + 0.4);
+    // colorRGB = colorRGB * vec3(1.0, abs(cos(u_time / 2.0 * v_position.x / u_resolution.x * 8.0)) * 0.6 + 0.4, abs(sin(u_time / 4.0)) * 0.6 + 0.4);
     // // Add mouse pointer effect
     // color = vec4(innerShadow(color.rgb, dist), 1.0);
     float temp_norm = v_temperature / 5000.0 + 0.5;
