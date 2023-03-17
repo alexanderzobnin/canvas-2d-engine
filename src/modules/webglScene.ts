@@ -6,7 +6,7 @@ import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 import { loadShaderSource } from "./utils";
 
-const MAX_PARTICLES = 100;
+const MAX_PARTICLES = 1000;
 const GRAVITY = 800;
 const COR = 0.7;
 
@@ -30,6 +30,7 @@ export async function init(canvas: HTMLCanvasElement) {
 export class SceneWebgl {
   canvas: HTMLCanvasElement;
   gl: WebGLRenderingContext | null;
+  program: WebGLProgram;
   animationFrameHandle: number;
   lastTime: number;
   lastTimePhysics: number;
@@ -60,7 +61,7 @@ export class SceneWebgl {
     this.objects = [];
     this.links = [];
     this.dropFramesCount = 0;
-    this.box = { x: 100, y: 100, w: 400, h: 600 };
+    this.box = { x: 0, y: 0, w: 800, h: 600 };
     this.particlesEmitter = new ParticleEmitter([200, 200], {});
     this.mousePos = { x: 0, y: 0 };
   }
@@ -70,20 +71,111 @@ export class SceneWebgl {
       // console.log(e);
       this.mousePos = { x: e.offsetX, y: e.offsetY };
     });
-    this.renderScene();
+
+    document.addEventListener("keyup", (e) => {
+      if (e.key === "s") {
+        if (!this.started) {
+          this.startAnimation();
+        }
+      }
+      if (e.key === "d") {
+        if (!this.started) {
+          this.startAnimation(1000);
+        }
+      }
+      if (e.key === "f") {
+        if (!this.started) {
+          this.startAnimation(1500);
+        }
+      }
+      if (e.key === "p") {
+        this.toggleAnimation();
+      }
+      if (e.key === "q") {
+        this.stopAnimation();
+      }
+      if (e.key === "e" || e.code === "Space") {
+        this.emitingParticles = false;
+      }
+      if (e.key === "t") {
+        this.emitingParticles = !this.emitingParticles;
+        this.emitParticles(10);
+      }
+      if (e.key === "r") {
+        this.removeParticles();
+      }
+    });
+
+    const gravity: Vec2d = [0, GRAVITY];
+    const solver = new Solver({ gravity, cor: COR, box: this.box });
+    this.solver = solver;
+
+    this.initScene();
+    this.startAnimation();
   }
 
-  renderScene() {
+  startAnimation(maxParticles?: number) {
+    this.started = true;
+    this.emitingParticles = true;
+    // this.physicsFrame(16);
+    // this.createLinks();
+    this.generateParticles(10, maxParticles);
+    this.animationFrame();
+  }
+
+  toggleAnimation() {
+    this.started = !this.started;
+    if (this.started) {
+      this.animationFrame();
+    }
+  }
+
+  stopAnimation() {
+    this.started = false;
+    cancelAnimationFrame(this.animationFrameHandle);
+  }
+
+  generateParticles(interval: number, maxParticles?: number) {
+    maxParticles = maxParticles || this.maxParticles;
+    this.emitParticle();
+
+    if (
+      this.started &&
+      this.emitingParticles &&
+      this.objects.length < maxParticles
+    ) {
+      setTimeout(() => {
+        this.generateParticles(interval || 100, maxParticles);
+      }, interval);
+    } else {
+      this.emitingParticles = false;
+    }
+  }
+
+  emitParticles(interval?: number) {
+    this.emitParticle();
+
+    if (this.started && this.emitingParticles) {
+      setTimeout(() => {
+        this.emitParticles(interval || 100);
+      }, interval);
+    }
+  }
+
+  emitParticle() {
+    const particle = this.particlesEmitter.emit();
+    this.objects.push(particle);
+  }
+
+  removeParticles() {
+    this.objects = [];
+  }
+
+  initScene() {
     const gl = this.gl;
-    const canvas = this.canvas;
-    const mousePos = this.mousePos;
-    const renderData = {
-      canvas: this.canvas,
-      mousePos: this.mousePos,
-    };
 
     // Clear screen with  color provided in gl.clearColor()
-    gl.clearColor(0.05, 0, 0.2, 1);
+    gl.clearColor(0.09, 0.0, 0.01, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     // Vertex shader
@@ -101,37 +193,40 @@ export class SceneWebgl {
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
     gl.linkProgram(program);
+    this.program = program;
 
-    const vertices = new Float32Array([0.1, 0.1, 0.3, 0.6, 0.5, 0.5]);
-
-    // Draw rectangle as a background
-    // const backgroundBox = new Float32Array([
-    //   1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, -1.0,
-    // ]);
-    // let bufferBackground = gl.createBuffer();
-    // gl.bindBuffer(gl.ARRAY_BUFFER, bufferBackground);
-
-    this.animate(gl, program, vertices);
+    this.animationFrame();
   }
 
-  animate(
-    gl: WebGLRenderingContext,
-    program: WebGLProgram,
-    vertices: Float32Array
-  ) {
-    for (let i = 0; i < vertices.length; i++) {
-      vertices[i] = Math.max(vertices[i] - 0.0005, -1);
+  animationFrame() {
+    if (!this.started) {
+      return;
     }
 
-    gl.clearColor(0.05, 0, 0.2, 1);
+    const { gl, program } = this;
+    const pointDimensions = 4;
+
+    this.solver.update(this.objects);
+    const vertices = new Float32Array(this.objects.length * pointDimensions);
+
+    for (let i = 0; i < this.objects.length; i++) {
+      const obj = this.objects[i];
+      vertices[i * pointDimensions] = obj.positionCurrent[0];
+      vertices[i * pointDimensions + 1] = obj.positionCurrent[1];
+      vertices[i * pointDimensions + 2] = obj.radius;
+      vertices[i * pointDimensions + 3] = obj.temp;
+    }
+
+    // for (let i = 0; i < vertices.length; i++) {
+    //   vertices[i] = Math.max(vertices[i] - 0.001, -1);
+    // }
+
+    // gl.clearColor(0.05, 0, 0.2, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     let buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    // gl.bindBuffer(gl.ARRAY_BUFFER, bufferBackground);
-    // gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
     gl.useProgram(program);
 
@@ -152,22 +247,44 @@ export class SceneWebgl {
     // @ts-ignore
     program.u_color = gl.getUniformLocation(program, "u_color");
     // @ts-ignore
-    gl.uniform4fv(program.u_color, [0.9, 0.8, 0.6, 1.0]);
+    gl.uniform4fv(program.u_color, [0.8, 0.6, 0.1, 1.0]);
 
     // Set vertices positions
     // @ts-ignore
     program.position = gl.getAttribLocation(program, "position");
     // @ts-ignore
-    gl.enableVertexAttribArray(program.position);
-    // @ts-ignore
-    gl.vertexAttribPointer(program.position, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(0);
 
-    gl.drawArrays(gl.POINTS, 0, vertices.length / 2);
+    // Set vertices radius
+    // @ts-ignore
+    program.radius = gl.getAttribLocation(program, "radius");
+    // @ts-ignore
+    gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 8);
+    gl.enableVertexAttribArray(1);
+
+    // Set vertices temperatures
+    // @ts-ignore
+    program.temperature = gl.getAttribLocation(program, "temperature");
+    // @ts-ignore
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 16, 12);
+    gl.enableVertexAttribArray(2);
+
+    //Set the attributes in the vertex shader to the same indices
+    gl.bindAttribLocation(program, 0, "position");
+    gl.bindAttribLocation(program, 1, "radius");
+    gl.bindAttribLocation(program, 2, "temperature");
+    // gl.linkProgram(program);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.DST_ALPHA);
+
+    gl.drawArrays(gl.POINTS, 0, vertices.length / pointDimensions);
 
     // gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertices.length / 2);
 
-    requestAnimationFrame(() => {
-      this.animate(gl, program, vertices);
+    this.animationFrameHandle = requestAnimationFrame(() => {
+      this.animationFrame();
     });
   }
 }
