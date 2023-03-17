@@ -11,7 +11,7 @@ const GRAVITY = 800;
 const COR = 0.7;
 
 export function initCanvas(canvas: HTMLCanvasElement) {
-  canvas.width = window.innerWidth - 50;
+  canvas.width = window.innerWidth - 200;
   canvas.height = window.innerHeight - 50;
 
   return canvas;

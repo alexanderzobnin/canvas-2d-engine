@@ -1,3 +1,15 @@
 .main-scene {
   border: 2px solid #0f0f0f;
 }
+
+.page {
+  display: flex;
+  flex-direction: row;
+}
+
+.fps-stats {
+  display: flex;
+  flex-direction: column;
+  padding-left: 16px;
+  font-family: 'Courier New', Courier, monospace;
+}

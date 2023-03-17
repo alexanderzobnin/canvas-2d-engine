@@ -18,6 +18,13 @@ interface RenderData {
   mousePos: { x: number; y: number };
 }
 
+export function initCanvas(canvas: HTMLCanvasElement) {
+  canvas.width = window.innerWidth - 200;
+  canvas.height = window.innerHeight - 50;
+
+  return canvas;
+}
+
 export async function init(canvas: HTMLCanvasElement) {
   const scene = new SceneWebgl(canvas, { debug: true });
 
@@ -120,13 +127,13 @@ export class SceneWebgl {
     // this.physicsFrame(16);
     // this.createLinks();
     this.generateParticles(10, maxParticles);
-    this.animationFrame();
+    this.animationFrame(this.lastTime);
   }
 
   toggleAnimation() {
     this.started = !this.started;
     if (this.started) {
-      this.animationFrame();
+      this.animationFrame(this.lastTime);
     }
   }
 
@@ -195,10 +202,10 @@ export class SceneWebgl {
     gl.linkProgram(program);
     this.program = program;
 
-    this.animationFrame();
+    this.animationFrame(this.lastTime);
   }
 
-  animationFrame() {
+  animationFrame(ts: number) {
     if (!this.started) {
       return;
     }
@@ -206,7 +213,13 @@ export class SceneWebgl {
     const { gl, program } = this;
     const pointDimensions = 4;
 
+    let deltaTime = ts - this.lastTime;
+    this.lastTime = ts;
+
+    const tsSolverStart = performance.now();
     this.solver.update(this.objects);
+    const tsSolverTime = performance.now() - tsSolverStart;
+
     const vertices = new Float32Array(this.objects.length * pointDimensions);
 
     for (let i = 0; i < this.objects.length; i++) {
@@ -283,8 +296,18 @@ export class SceneWebgl {
 
     // gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertices.length / 2);
 
-    this.animationFrameHandle = requestAnimationFrame(() => {
-      this.animationFrame();
+    document.getElementById("fps").textContent = `FPS: ${Math.floor(
+      1000 / deltaTime
+    )}`;
+    document.getElementById("physicsTime").textContent = `Physics: ${Math.floor(
+      tsSolverTime
+    )} ms`;
+    document.getElementById(
+      "particlesNum"
+    ).textContent = `Particles: ${this.objects.length}`;
+
+    this.animationFrameHandle = requestAnimationFrame((ts) => {
+      this.animationFrame(ts);
     });
   }
 }
