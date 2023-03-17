@@ -48,10 +48,10 @@ export class SceneWebgl {
   started: boolean;
   maxParticles: number;
   emitingParticles: boolean;
-  dropFramesCount: number;
   box: { x: number; y: number; w: number; h: number };
   particlesEmitter: ParticleEmitter;
   mousePos: { x: number; y: number };
+  framesCount: number;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -67,7 +67,7 @@ export class SceneWebgl {
     this.maxParticles = this.maxParticles || MAX_PARTICLES;
     this.objects = [];
     this.links = [];
-    this.dropFramesCount = 0;
+    this.framesCount = 0;
     this.box = { x: 0, y: 0, w: 800, h: 600 };
     this.particlesEmitter = new ParticleEmitter([200, 200], {});
     this.mousePos = { x: 0, y: 0 };
@@ -140,6 +140,8 @@ export class SceneWebgl {
   stopAnimation() {
     this.started = false;
     cancelAnimationFrame(this.animationFrameHandle);
+    this.removeParticles();
+    this.clearScreen();
   }
 
   generateParticles(interval: number, maxParticles?: number) {
@@ -178,12 +180,16 @@ export class SceneWebgl {
     this.objects = [];
   }
 
-  initScene() {
+  clearScreen() {
     const gl = this.gl;
-
     // Clear screen with  color provided in gl.clearColor()
     gl.clearColor(0.09, 0.0, 0.01, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  initScene() {
+    const gl = this.gl;
+    this.clearScreen();
 
     // Vertex shader
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -206,6 +212,7 @@ export class SceneWebgl {
   }
 
   animationFrame(ts: number) {
+    this.framesCount++;
     if (!this.started) {
       return;
     }
@@ -296,18 +303,27 @@ export class SceneWebgl {
 
     // gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertices.length / 2);
 
-    document.getElementById("fps").textContent = `FPS: ${Math.floor(
-      1000 / deltaTime
-    )}`;
-    document.getElementById("physicsTime").textContent = `Physics: ${Math.floor(
-      tsSolverTime
-    )} ms`;
-    document.getElementById(
-      "particlesNum"
-    ).textContent = `Particles: ${this.objects.length}`;
+    if (this.framesCount === 10) {
+      if (this.debug) {
+        this.renderDebugInfo(deltaTime, tsSolverTime);
+      }
+      this.framesCount = 0;
+    }
 
     this.animationFrameHandle = requestAnimationFrame((ts) => {
       this.animationFrame(ts);
     });
+  }
+
+  renderDebugInfo(deltaTime: number, tsSolverTime: number) {
+    document.getElementById("fps").textContent = `${Math.floor(
+      1000 / deltaTime
+    )}`;
+    document.getElementById("physicsTime").textContent = `${Math.floor(
+      tsSolverTime
+    )} ms`;
+    document.getElementById(
+      "particlesNum"
+    ).textContent = `${this.objects.length}`;
   }
 }

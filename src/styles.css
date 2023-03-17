@@ -5,6 +5,7 @@
 .page {
   display: flex;
   flex-direction: row;
+  background: #000000;
 }
 
 .fps-stats {
@@ -12,4 +13,5 @@
   flex-direction: column;
   padding-left: 16px;
   font-family: 'Courier New', Courier, monospace;
+  color: #a2c816;
 }
