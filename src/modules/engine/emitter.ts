@@ -3,13 +3,20 @@ import { Particle } from "./particle";
 import { Vec2d } from "./types";
 import { vecSub } from "./vector";
 
-export interface EmitterOptions {}
+export interface EmitterOptions {
+  maxX?: number;
+  maxY?: number;
+}
 
 export class ParticleEmitter {
   position: Vec2d;
+  maxX: number;
+  maxY: number;
 
   constructor(position: Vec2d, options?: EmitterOptions) {
     this.position = position;
+    this.maxX = options.maxX;
+    this.maxY = options.maxY;
   }
 
   emit() {
@@ -23,6 +30,12 @@ export class ParticleEmitter {
     ];
 
     return generateParticle(this.position, particleVelocity);
+  }
+
+  emitRandom() {
+    const x = Math.floor(Math.random() * this.maxX);
+    const y = Math.floor(Math.random() * this.maxY);
+    return generateParticle([x, y], [0, 0]);
   }
 }
 

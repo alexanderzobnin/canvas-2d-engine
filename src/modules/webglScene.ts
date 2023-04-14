@@ -6,12 +6,14 @@ import { Solver } from "./engine/solver";
 import { Vec2d } from "./engine/types";
 import { loadShaderSource } from "./utils";
 
-const MAX_PARTICLES = 1000;
-const GRAVITY = 800;
+const MAX_PARTICLES = 3000;
+const GRAVITY = 400;
 const COR = 0.7;
 
-let particleVertexShader: string;
-let particleFragmentShader: string;
+let particleVS: string;
+let particleFS: string;
+let physicsVS: string;
+let physicsFS: string;
 
 interface RenderData {
   canvas: HTMLCanvasElement;
@@ -28,16 +30,20 @@ export function initCanvas(canvas: HTMLCanvasElement) {
 export async function init(canvas: HTMLCanvasElement) {
   const scene = new SceneWebgl(canvas, { debug: true });
 
-  particleVertexShader = await loadShaderSource("particle.vert");
-  particleFragmentShader = await loadShaderSource("particle.frag");
+  particleVS = await loadShaderSource("particle.vert");
+  particleFS = await loadShaderSource("particle.frag");
+
+  physicsVS = await loadShaderSource("physics.vert");
+  physicsFS = await loadShaderSource("physics.frag");
 
   scene.init();
 }
 
 export class SceneWebgl {
   canvas: HTMLCanvasElement;
-  gl: WebGLRenderingContext | null;
-  program: WebGLProgram;
+  gl: WebGL2RenderingContext | null;
+  renderProgram: WebGLProgram;
+  physicsProgram: WebGLProgram;
   animationFrameHandle: number;
   lastTime: number;
   lastTimePhysics: number;
@@ -58,7 +64,7 @@ export class SceneWebgl {
     options?: { debug?: boolean; maxParticles?: number }
   ) {
     this.canvas = canvas;
-    this.gl = canvas.getContext("webgl");
+    this.gl = canvas.getContext("webgl2");
     this.lastTime = 0;
     this.lastTimePhysics = 0;
 
@@ -69,7 +75,10 @@ export class SceneWebgl {
     this.links = [];
     this.framesCount = 0;
     this.box = { x: 0, y: 0, w: 800, h: 600 };
-    this.particlesEmitter = new ParticleEmitter([200, 200], {});
+    this.particlesEmitter = new ParticleEmitter([200, 200], {
+      maxX: 800,
+      maxY: 600,
+    });
     this.mousePos = { x: 0, y: 0 };
   }
 
@@ -126,7 +135,7 @@ export class SceneWebgl {
     this.emitingParticles = true;
     // this.physicsFrame(16);
     // this.createLinks();
-    this.generateParticles(10, maxParticles);
+    this.generateParticlesRandom(maxParticles || this.maxParticles);
     this.animationFrame(this.lastTime);
   }
 
@@ -161,6 +170,15 @@ export class SceneWebgl {
     }
   }
 
+  generateParticlesRandom(particlesNum: number) {
+    const particles = new Array<Particle>(particlesNum);
+    for (let i = 0; i < particlesNum; i++) {
+      const particle = this.particlesEmitter.emitRandom();
+      particles[i] = particle;
+    }
+    this.objects = particles;
+  }
+
   emitParticles(interval?: number) {
     this.emitParticle();
 
@@ -193,20 +211,76 @@ export class SceneWebgl {
 
     // Vertex shader
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vertexShader, particleVertexShader);
+    gl.shaderSource(vertexShader, particleVS);
     gl.compileShader(vertexShader);
 
     // Fragment shader
     const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(fragmentShader, particleFragmentShader);
+    gl.shaderSource(fragmentShader, particleFS);
     gl.compileShader(fragmentShader);
 
-    // Link program
-    const program = gl.createProgram();
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    this.program = program;
+    // Link rendering program
+    const renderProgram = gl.createProgram();
+    gl.attachShader(renderProgram, vertexShader);
+    gl.attachShader(renderProgram, fragmentShader);
+    gl.linkProgram(renderProgram);
+    this.renderProgram = renderProgram;
+
+    // Vertex shader
+    const physicsVShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(physicsVShader, physicsVS);
+    gl.compileShader(physicsVShader);
+
+    // Fragment shader
+    const physicsFShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(physicsFShader, physicsFS);
+    gl.compileShader(physicsFShader);
+
+    // Link physics program
+    const physicsProgram = gl.createProgram();
+    gl.attachShader(physicsProgram, vertexShader);
+    gl.attachShader(physicsProgram, fragmentShader);
+    gl.linkProgram(physicsProgram);
+    this.physicsProgram = physicsProgram;
+
+    // make a texture
+    const tex = gl.createTexture();
+    const texWidth = 64;
+    const texHeight = 64;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA8,
+      texWidth,
+      texHeight,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      null
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+    // attach texture to framebuffer
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      tex,
+      0
+    );
+
+    // render to texture
+    gl.viewport(0, 0, texWidth, texHeight);
+    gl.useProgram(physicsProgram);
+    gl.drawArrays(gl.POINTS, 0, 1);
+
+    // render texture (output of prg1) to canvas using prg2
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.useProgram(renderProgram);
 
     this.animationFrame(this.lastTime);
   }
@@ -217,7 +291,7 @@ export class SceneWebgl {
       return;
     }
 
-    const { gl, program } = this;
+    const { gl, renderProgram: program } = this;
     const pointDimensions = 4;
 
     let deltaTime = ts - this.lastTime;

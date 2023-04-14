@@ -18,18 +18,27 @@ interface RenderData {
   mousePos: { x: number; y: number };
 }
 
+export function initCanvas(canvas: HTMLCanvasElement) {
+  canvas.width = window.innerWidth - 200;
+  canvas.height = window.innerHeight - 50;
+
+  return canvas;
+}
+
 export async function init(canvas: HTMLCanvasElement) {
   const scene = new SceneWebglPlayground(canvas, { debug: true });
 
   simpleVertexShader = await loadShaderSource("simpleVertexShader.vert");
   simpleFragmentShader = await loadShaderSource("simpleFragmentShader.frag");
+  simpleVertexShader = await loadShaderSource("play.vert");
+  simpleFragmentShader = await loadShaderSource("play.frag");
 
   scene.init();
 }
 
 export class SceneWebglPlayground {
   canvas: HTMLCanvasElement;
-  gl: WebGLRenderingContext | null;
+  gl: WebGL2RenderingContext | null;
   animationFrameHandle: number;
   lastTime: number;
   lastTimePhysics: number;
@@ -50,7 +59,7 @@ export class SceneWebglPlayground {
     options?: { debug?: boolean; maxParticles?: number }
   ) {
     this.canvas = canvas;
-    this.gl = canvas.getContext("webgl");
+    this.gl = canvas.getContext("webgl2");
     this.lastTime = 0;
     this.lastTimePhysics = 0;
 
@@ -70,7 +79,26 @@ export class SceneWebglPlayground {
       // console.log(e);
       this.mousePos = { x: e.offsetX, y: e.offsetY };
     });
+    document.addEventListener("keyup", (e) => {
+      if (e.key === "q") {
+        this.stopAnimation();
+      }
+    });
+
     this.renderScene();
+  }
+
+  stopAnimation() {
+    this.started = false;
+    cancelAnimationFrame(this.animationFrameHandle);
+    this.clearScreen();
+  }
+
+  clearScreen() {
+    const gl = this.gl;
+    // Clear screen with  color provided in gl.clearColor()
+    gl.clearColor(0.09, 0.0, 0.01, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
   renderScene() {
@@ -111,10 +139,10 @@ export class SceneWebglPlayground {
     let bufferBackground = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, bufferBackground);
 
-    this.animate(gl, program, backgroundBox);
+    this.animationFrame(gl, program, backgroundBox);
   }
 
-  animate(
+  animationFrame(
     gl: WebGLRenderingContext,
     program: WebGLProgram,
     vertices: Float32Array
@@ -166,8 +194,8 @@ export class SceneWebglPlayground {
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertices.length / 2);
 
-    requestAnimationFrame(() => {
-      this.animate(gl, program, vertices);
+    this.animationFrameHandle = requestAnimationFrame(() => {
+      this.animationFrame(gl, program, vertices);
     });
   }
 }

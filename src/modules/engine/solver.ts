@@ -83,7 +83,7 @@ export class Solver {
 
   applyConvection(objects: Particle[]) {
     for (let i = 0; i < objects.length; i++) {
-      const convectionForce = Math.min(objects[i].temp, 5000) * 1;
+      const convectionForce = Math.min(objects[i].temp, 5000) * 0.6;
       // const convectionAcc = convectionForce / Math.pow(objects[i].mass / 4, 2);
       const convectionAcc = convectionForce;
       objects[i].accelerate([0, -convectionAcc]);
@@ -95,7 +95,7 @@ export class Solver {
       // Cooling
       const obj = objects[i];
       if (obj.positionCurrent[1] < 550) {
-        const dTemp = (850 - obj.positionCurrent[1]) * 0.1;
+        const dTemp = (850 - obj.positionCurrent[1]) * 0.005;
         obj.temp = Math.max(obj.temp - dTemp, 0);
       }
 
