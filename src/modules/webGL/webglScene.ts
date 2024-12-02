@@ -27,7 +27,7 @@ export function initCanvas(canvas: HTMLCanvasElement) {
   return canvas;
 }
 
-export async function init(canvas: HTMLCanvasElement) {
+export async function initScene(canvas: HTMLCanvasElement) {
   const scene = new SceneWebgl(canvas, { debug: true });
 
   particleVS = await loadShaderSource("particle.vert");

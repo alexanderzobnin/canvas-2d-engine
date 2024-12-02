@@ -50,10 +50,10 @@ void main() {
     // color = vec3(1.0 - dist);
 
     dist = smoothstep(radius * 0.95, radius, dist);
-    vec3 base_color = vec3(0.8, 0.2, 0.0);
+    vec3 base_color = vec3(0.8, 0.4, 0.0);
     color = dist_color(base_color, dist);
 
-    // // gl_FragColor = vec4(color.r, color.g * mod_size * 10.0, color.b * mod_size, 1.0);
+    // gl_FragColor = vec4(color.r, color.g * mod_size * 10.0, color.b * mod_size, 1.0);
     gl_FragColor = vec4(color, 1.0);
 
 
