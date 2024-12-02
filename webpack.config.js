@@ -37,6 +37,10 @@ module.exports = {
           from: "src/modules/webGL/shaders/",
           to: "./shaders",
         },
+        {
+          from: "data/",
+          to: "./data",
+        },
       ],
     }),
   ],

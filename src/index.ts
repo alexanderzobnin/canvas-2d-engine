@@ -1,6 +1,7 @@
 // import { initAnimation, initCanvas, initContext } from "./modules/scene";
-import { initScene, initCanvas } from "./modules/webGL/webglPlayground";
+// import { initScene, initCanvas } from "./modules/webGL/webglPlayground";
 // import { initScene, initCanvas } from "./modules/webGL/webglScene";
+import { initScene, initCanvas } from "./modules/webGL/webglImageProcess";
 
 function main() {
   const scene: HTMLCanvasElement = document.getElementById(
