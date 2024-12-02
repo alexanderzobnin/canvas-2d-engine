@@ -34,7 +34,7 @@ module.exports = {
           to: "./",
         },
         {
-          from: "src/modules/shaders/",
+          from: "src/modules/webGL/shaders/",
           to: "./shaders",
         },
       ],

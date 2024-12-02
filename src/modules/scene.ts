@@ -48,6 +48,7 @@ export class Scene {
   dropFramesCount: number;
   box: { x: number; y: number; w: number; h: number };
   particlesEmitter: ParticleEmitter;
+  framesCount: number;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -66,6 +67,7 @@ export class Scene {
     this.dropFramesCount = 0;
     this.box = { x: 100, y: 100, w: 400, h: 600 };
     this.particlesEmitter = new ParticleEmitter([200, 200], {});
+    this.framesCount = 0;
   }
 
   init() {
@@ -217,6 +219,8 @@ export class Scene {
   }
 
   animationFrame(ts: number) {
+    this.framesCount++;
+
     if (this.started) {
       const ctx = this.ctx;
       // Clear screen
@@ -228,8 +232,11 @@ export class Scene {
       this.solver.update(this.objects, this.links);
       const tsSolverTime = performance.now() - tsSolverStart;
 
-      if (this.debug) {
-        this.renderDebugInfo(deltaTime, tsSolverTime);
+      if (this.framesCount === 30) {
+        if (this.debug) {
+          this.renderDebugInfo(deltaTime, tsSolverTime);
+        }
+        this.framesCount = 0;
       }
 
       // Limit deltaTime to 30 ms to prevent strange behavior

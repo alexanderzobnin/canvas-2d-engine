@@ -1,12 +1,12 @@
 import { throttle } from "lodash";
-import { ParticleEmitter } from "./engine/emitter";
-import { Link } from "./engine/link";
-import { Particle } from "./engine/particle";
-import { Solver } from "./engine/solver";
-import { Vec2d } from "./engine/types";
+import { ParticleEmitter } from "../engine/emitter";
+import { Link } from "../engine/link";
+import { Particle } from "../engine/particle";
+import { Solver } from "../engine/solver";
+import { Vec2d } from "../engine/types";
 import { loadShaderSource } from "./utils";
 
-const MAX_PARTICLES = 3000;
+const MAX_PARTICLES = 1000;
 const GRAVITY = 400;
 const COR = 0.7;
 
@@ -115,7 +115,7 @@ export class SceneWebgl {
       }
       if (e.key === "t") {
         this.emitingParticles = !this.emitingParticles;
-        this.emitParticles(10);
+        this.emitParticles(1);
       }
       if (e.key === "r") {
         this.removeParticles();
